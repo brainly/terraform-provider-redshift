@@ -118,7 +118,7 @@ resource "redshift_privilege" "simple_table" {
   group = redshift_group.test_simple.name
   schema = "public"
   object_type = "table"
-  privileges = ["select", "update"]
+  privileges = ["SELECT", "update"]
 }
 
 resource "redshift_privilege" "simple_schema" {

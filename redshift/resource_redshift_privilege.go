@@ -68,9 +68,14 @@ When you create a database object, you are its owner. By default, only a superus
 				Description:  "The Redshift object type to grant the privileges on (one of: " + strings.Join(allowedObjectTypes, ", ") + ").",
 			},
 			privilegePrivilegesAttr: &schema.Schema{
-				Type:        schema.TypeSet,
-				Required:    true,
-				Elem:        &schema.Schema{Type: schema.TypeString},
+				Type:     schema.TypeSet,
+				Required: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+					StateFunc: func(val interface{}) string {
+						return strings.ToLower(val.(string))
+					},
+				},
 				Set:         schema.HashString,
 				Description: "The list of privileges to grant. See [GRANT SQL command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type.",
 			},

@@ -50,6 +50,9 @@ A database contains one or more named schemas. Each schema in a database contain
 				Optional:    true,
 				Computed:    true,
 				Description: "Name of the schema owner.",
+				StateFunc: func(val interface{}) string {
+					return strings.ToLower(val.(string))
+				},
 			},
 			schemaQuotaAttr: {
 				Type:         schema.TypeInt,

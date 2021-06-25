@@ -39,9 +39,13 @@ When you create a database object, you are its owner. By default, only a superus
 		Delete: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftPrivilegeDelete),
 		),
-		Create: RedshiftResourceFunc(resourceRedshiftPrivilegeCreate),
+		Create: RedshiftResourceFunc(
+			RedshiftResourceRetryOnPQErrors(resourceRedshiftPrivilegeCreate),
+		),
 		// Since we revoke all when creating, we can use create as update
-		Update: RedshiftResourceFunc(resourceRedshiftPrivilegeCreate),
+		Update: RedshiftResourceFunc(
+			RedshiftResourceRetryOnPQErrors(resourceRedshiftPrivilegeCreate),
+		),
 
 		Schema: map[string]*schema.Schema{
 			privilegeSchemaAttr: {
@@ -117,23 +121,23 @@ func resourceRedshiftPrivilegeCreate(db *DBConnection, d *schema.ResourceData) e
 	defer deferredRollback(tx)
 
 	if err := execQueryIfNotEmpty(tx, revokeQuery); err != nil {
-		return fmt.Errorf("failed to revoke privileges for group '%s': %w", revokeQuery, err)
+		return err
 	}
 
 	if err := execQueryIfNotEmpty(tx, revokeAlterDefaultQuery); err != nil {
-		return fmt.Errorf("failed to revoke default privileges for group '%s': %w", revokeAlterDefaultQuery, err)
+		return err
 	}
 
 	if err := execQueryIfNotEmpty(tx, grantQuery); err != nil {
-		return fmt.Errorf("failed to grant privileges: %w", err)
+		return err
 	}
 
 	if err := execQueryIfNotEmpty(tx, alterDefaultQuery); err != nil {
-		return fmt.Errorf("failed to grant default privileges: %w", err)
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("could not commit transaction: %w", err)
+		return err
 	}
 
 	d.SetId(generatePrivilegesID(d))

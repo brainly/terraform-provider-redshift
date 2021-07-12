@@ -12,6 +12,12 @@ The Redshift provider provides configuration management resources for
 
 ## Example Usage
 
+### Authentication using fixed password
+
 {{ tffile "examples/provider/provider.tf" }}
+
+### Authentication using temporary credentials
+
+{{ tffile "examples/provider/provider_using_temporary_credentials.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}

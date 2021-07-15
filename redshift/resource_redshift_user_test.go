@@ -3,6 +3,8 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -24,6 +26,7 @@ func TestAccRedshiftUser_Basic(t *testing.T) {
 
 					testAccCheckRedshiftUserExists("John-and-Jane.doe@example.com"),
 					resource.TestCheckResourceAttr("redshift_user.with_email", "name", "john-and-jane.doe@example.com"),
+					testAccCheckRedshiftUserCanLogin("John-and-Jane.doe@example.com", "Foobarbaz1"),
 
 					testAccCheckRedshiftUserExists("user_defaults"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "name", "user_defaults"),
@@ -282,5 +285,45 @@ func TestPermanentUsername(t *testing.T) {
 	}
 	if result := permanentUsername(fmt.Sprintf("IAMA:%s", expected)); result != expected {
 		t.Fatalf("permanentUsername should strip \"IAMA:\" prefix. Expected %s but was %s", expected, result)
+	}
+}
+
+func testAccCheckRedshiftUserCanLogin(user string, password string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		// there doesn't seem to be a good way to extract the provider configuration
+		// at runtime. However we know we've configured the provider with default settings
+		// so we can mimic the same behavior
+		port, ok := os.LookupEnv("REDSHIFT_PORT")
+		if !ok {
+			port = "5439"
+		}
+		portNum, err := strconv.Atoi(port)
+		if err != nil {
+			return fmt.Errorf("Unable to check if user can login due to bad REDSHIFT_PORT: %s", err)
+		}
+		database, ok := os.LookupEnv("REDSHIFT_DATABASE")
+		if !ok {
+			database = "redshift"
+		}
+		sslMode, ok := os.LookupEnv("REDSHIFT_SSLMODE")
+		if !ok {
+			sslMode = "require"
+		}
+		config := &Config{
+			Host:     os.Getenv("REDSHIFT_HOST"),
+			Port:     portNum,
+			Username: user,
+			Password: password,
+			Database: database,
+			SSLMode:  sslMode,
+			MaxConns: defaultProviderMaxOpenConnections,
+		}
+
+		client, err := config.Client()
+		if err != nil {
+			return fmt.Errorf("User is unable to login %s", err)
+		}
+		defer client.Close()
+		return nil
 	}
 }

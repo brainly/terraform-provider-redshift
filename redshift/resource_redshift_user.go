@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -25,6 +26,17 @@ const (
 	defaultUserSyslogAccess          = "RESTRICTED"
 	defaultUserSuperuserSyslogAccess = "UNRESTRICTED"
 )
+
+// When authenticating using temporary credentials obtained by GetClusterCredentials,
+// the resulting username is prefixed with either "IAM:"" or "IAMA:"
+// This regexp is designed to match either prefix.
+// See https://docs.aws.amazon.com/redshift/latest/APIReference/API_GetClusterCredentials.html
+var temporaryCredentialsUsernamePrefixRegexp = regexp.MustCompile("^(?:IAMA?:)")
+
+// Resolve the "real" username by stripping the temporary credentials prefix
+func permanentUsername(username string) string {
+	return temporaryCredentialsUsernamePrefixRegexp.ReplaceAllString(username, "")
+}
 
 func redshiftUser() *schema.Resource {
 	return &schema.Resource{
@@ -292,6 +304,7 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 func resourceRedshiftUserDelete(db *DBConnection, d *schema.ResourceData) error {
 	useSysID := d.Id()
 	userName := d.Get(userNameAttr).(string)
+	newOwnerName := permanentUsername(db.client.config.Username)
 
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
@@ -304,28 +317,28 @@ func resourceRedshiftUserDelete(db *DBConnection, d *schema.ResourceData) error 
 			FROM (
 			      -- Functions owned by the user
 			      SELECT pgu.usesysid,
-			      'alter function ' || QUOTE_IDENT(nc.nspname) || '.' ||textin (regprocedureout (pproc.oid::regprocedure)) || ' owner to '
+			      'alter function ' || QUOTE_IDENT(nc.nspname) || '.' ||textin (regprocedureout (pproc.oid::regprocedure)) || ' owner to ' || $2
 			      FROM pg_proc pproc,pg_user pgu,pg_namespace nc
 			      WHERE pproc.pronamespace = nc.oid
 			      AND   pproc.proowner = pgu.usesysid
 			  UNION ALL
 			      -- Databases owned by the user
 			      SELECT pgu.usesysid,
-			      'alter database ' || QUOTE_IDENT(pgd.datname) || ' owner to '
+			      'alter database ' || QUOTE_IDENT(pgd.datname) || ' owner to ' || $2
 			      FROM pg_database pgd,
 				   pg_user pgu
 			      WHERE pgd.datdba = pgu.usesysid
 			  UNION ALL
 			      -- Schemas owned by the user
 			      SELECT pgu.usesysid,
-			      'alter schema '|| QUOTE_IDENT(pgn.nspname) ||' owner to '
+			      'alter schema '|| QUOTE_IDENT(pgn.nspname) ||' owner to ' || $2
 			      FROM pg_namespace pgn,
 				   pg_user pgu
 			      WHERE pgn.nspowner = pgu.usesysid
 			  UNION ALL
 			      -- Tables or Views owned by the user
 			      SELECT pgu.usesysid,
-			      'alter table ' || QUOTE_IDENT(nc.nspname) || '.' || QUOTE_IDENT(pgc.relname) || ' owner to '
+			      'alter table ' || QUOTE_IDENT(nc.nspname) || '.' || QUOTE_IDENT(pgc.relname) || ' owner to ' || $2
 			      FROM pg_class pgc,
 				   pg_user pgu,
 				   pg_namespace nc
@@ -337,7 +350,7 @@ func resourceRedshiftUserDelete(db *DBConnection, d *schema.ResourceData) error 
 			OWNER("userid", "ddl")
 			WHERE owner.userid = $1;`
 
-	rows, err := tx.Query(reassignOwnerGenerator, useSysID)
+	rows, err := tx.Query(reassignOwnerGenerator, useSysID, pq.QuoteIdentifier(newOwnerName))
 	if err != nil {
 		return err
 	}
@@ -354,7 +367,7 @@ func resourceRedshiftUserDelete(db *DBConnection, d *schema.ResourceData) error 
 	}
 
 	for _, statement := range reassignStatements {
-		if _, err := tx.Exec(statement + pq.QuoteIdentifier(db.client.config.Username)); err != nil {
+		if _, err := tx.Exec(statement); err != nil {
 			log.Printf("error: %#v", err)
 			return err
 		}

@@ -271,3 +271,16 @@ resource "redshift_user" "user_superuser" {
   password = "FooBarBaz123"
 }
 `
+
+func TestPermanentUsername(t *testing.T) {
+	expected := "user"
+	if result := permanentUsername(expected); result != expected {
+		t.Fatalf("Calling permanentUsername on a non-prefixed username should return the username. Expected %s but was %s", expected, result)
+	}
+	if result := permanentUsername(fmt.Sprintf("IAM:%s", expected)); result != expected {
+		t.Fatalf("permanentUsername should strip \"IAM:\" prefix. Expected %s but was %s", expected, result)
+	}
+	if result := permanentUsername(fmt.Sprintf("IAMA:%s", expected)); result != expected {
+		t.Fatalf("permanentUsername should strip \"IAMA:\" prefix. Expected %s but was %s", expected, result)
+	}
+}

@@ -154,16 +154,21 @@ func resolveCredentials(d *schema.ResourceData) (string, string, error) {
 	if (!ok) || username == nil {
 		return "", "", fmt.Errorf("Username is required")
 	}
-	if password, passwordIsSet := d.GetOk("password"); passwordIsSet {
+	password, passwordIsSet := d.GetOk("password")
+	_, clusterIdentifierIsSet := d.GetOk("temporary_credentials.0.cluster_identifier")
+	if !passwordIsSet && !clusterIdentifierIsSet {
+		return "", "", fmt.Errorf("password or temporary_credentials must be configured")
+	}
+	if passwordIsSet {
 		if password.(string) != "" {
 			log.Println("[DEBUG] using password authentication")
 			return username.(string), password.(string), nil
 		}
 	}
 	log.Println("[DEBUG] using temporary credentials authentication")
-	dbUser, password, err := temporaryCredentials(username.(string), d)
+	dbUser, dbPassword, err := temporaryCredentials(username.(string), d)
 	log.Printf("[DEBUG] got temporary credentials with username %s\n", dbUser)
-	return dbUser, password, err
+	return dbUser, dbPassword, err
 }
 
 // temporaryCredentials gets temporary credentials using GetClusterCredentials
@@ -172,21 +177,19 @@ func temporaryCredentials(username string, d *schema.ResourceData) (string, stri
 	if err != nil {
 		return "", "", err
 	}
-
-	config, ok := d.Get("temporary_credentials").([]interface{})
-	if (!ok) || config == nil {
+	clusterIdentifier, clusterIdentifierIsSet := d.GetOk("temporary_credentials.0.cluster_identifier")
+	if !clusterIdentifierIsSet {
 		return "", "", fmt.Errorf("temporary_credentials not configured")
 	}
-	c := config[0].(map[string]interface{})
 	input := &redshift.GetClusterCredentialsInput{
-		ClusterIdentifier: aws.String(c["cluster_identifier"].(string)),
+		ClusterIdentifier: aws.String(clusterIdentifier.(string)),
 		DbName:            aws.String(d.Get("database").(string)),
 		DbUser:            aws.String(username),
 	}
-	if autoCreateUser, ok := c["auto_create_user"]; ok && autoCreateUser != nil {
+	if autoCreateUser, ok := d.GetOk("temporary_credentials.0.auto_create_user"); ok {
 		input.AutoCreate = aws.Bool(autoCreateUser.(bool))
 	}
-	if dbGroups, ok := c["db_groups"]; ok {
+	if dbGroups, ok := d.GetOk("temporary_credentials.0.db_groups"); ok {
 		if dbGroups != nil {
 			dbGroupsList := dbGroups.(*schema.Set).List()
 			if len(dbGroupsList) > 0 {
@@ -200,7 +203,7 @@ func temporaryCredentials(username string, d *schema.ResourceData) (string, stri
 			}
 		}
 	}
-	if durationSeconds, ok := c["duration_seconds"]; ok {
+	if durationSeconds, ok := d.GetOk("temporary_credentials.0.duration_seconds"); ok {
 		duration := durationSeconds.(int)
 		if duration > 0 {
 			input.DurationSeconds = aws.Int32(int32(duration))

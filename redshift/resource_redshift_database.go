@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,12 @@ import (
 const databaseNameAttr = "name"
 const databaseOwnerAttr = "owner"
 const databaseConnLimitAttr = "connection_limit"
+const databaseDatashareSourceAttr = "datashare_source"
+const databaseDatashareSourceShareNameAttr = "share_name"
+const databaseDatashareSourceNamespaceAttr = "namespace"
+const databaseDatashareSourceAccountAttr = "account_id"
+
+var awsAccountIdRegexp = regexp.MustCompile(`^\d{12}$`)
 
 func redshiftDatabase() *schema.Resource {
 	return &schema.Resource{
@@ -25,8 +32,9 @@ func redshiftDatabase() *schema.Resource {
 		Update:      RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
 		Delete:      RedshiftResourceFunc(resourceRedshiftDatabaseDelete),
 		Importer: &schema.ResourceImporter{
-			State: RedshiftImportFunc(resourceRedshiftDatabaseImport),
+			State: schema.ImportStatePassthrough,
 		},
+		CustomizeDiff: forceNewIfListSizeChanged(databaseDatashareSourceAttr),
 		Schema: map[string]*schema.Schema{
 			databaseNameAttr: {
 				Type:        schema.TypeString,
@@ -52,6 +60,42 @@ func redshiftDatabase() *schema.Resource {
 				Default:      -1,
 				ValidateFunc: validation.IntAtLeast(-1),
 			},
+			databaseDatashareSourceAttr: {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Configuration for creating a database from a redshift datashare.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						databaseDatashareSourceShareNameAttr: {
+							Type:        schema.TypeString,
+							Required:    true,
+							ForceNew:    true,
+							Description: "The name of the datashare on the producer cluster",
+							StateFunc: func(val interface{}) string {
+								return strings.ToLower(val.(string))
+							},
+						},
+						databaseDatashareSourceNamespaceAttr: {
+							Type:        schema.TypeString,
+							Required:    true,
+							ForceNew:    true,
+							Description: "The namespace (guid) of the producer cluster",
+							StateFunc: func(val interface{}) string {
+								return strings.ToLower(val.(string))
+							},
+						},
+						databaseDatashareSourceAccountAttr: {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ForceNew:     true,
+							Computed:     true,
+							Description:  "The AWS account ID of the producer cluster.",
+							ValidateFunc: validation.StringMatch(awsAccountIdRegexp, "AWS account id must be a 12-digit number"),
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -73,6 +117,57 @@ func resourceRedshiftDatabaseExists(db *DBConnection, d *schema.ResourceData) (b
 }
 
 func resourceRedshiftDatabaseCreate(db *DBConnection, d *schema.ResourceData) error {
+	if _, isDataShare := d.GetOk(fmt.Sprintf("%s.0.%s", databaseDatashareSourceAttr, databaseDatashareSourceShareNameAttr)); isDataShare {
+		return resourceRedshiftDatabaseCreateFromDatashare(db, d)
+	}
+	return resourceRedshiftDatabaseCreateInternal(db, d)
+}
+
+func resourceRedshiftDatabaseCreateFromDatashare(db *DBConnection, d *schema.ResourceData) error {
+	dbName := d.Get(databaseNameAttr).(string)
+	shareName := d.Get(fmt.Sprintf("%s.0.%s", databaseDatashareSourceAttr, databaseDatashareSourceShareNameAttr)).(string)
+	query := fmt.Sprintf("CREATE DATABASE %s FROM DATASHARE %s OF", pq.QuoteIdentifier(dbName), pq.QuoteIdentifier(shareName))
+	if sourceAccount, ok := d.GetOk(fmt.Sprintf("%s.0.%s", databaseDatashareSourceAttr, databaseDatashareSourceAccountAttr)); ok {
+		query = fmt.Sprintf("%s ACCOUNT '%s'", query, pqQuoteLiteral(sourceAccount.(string)))
+	}
+	namespace := d.Get(fmt.Sprintf("%s.0.%s", databaseDatashareSourceAttr, databaseDatashareSourceNamespaceAttr))
+	query = fmt.Sprintf("%s NAMESPACE '%s'", query, pqQuoteLiteral(namespace.(string)))
+
+	if _, err := db.Exec(query); err != nil {
+		return err
+	}
+
+	// CREATE DATABASE FROM DATASHARE... doesn't allow you to specify an owner in the create statement,
+	// so we need to set the owner after creation using ALTER DATABASE...
+	owner, ownerIsSet := d.GetOk(databaseOwnerAttr)
+	if ownerIsSet {
+		if _, err := db.Exec(fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", pq.QuoteIdentifier(dbName), pq.QuoteIdentifier(owner.(string)))); err != nil {
+			return err
+		}
+	}
+
+	// CREATE DATABASE FROM DATASHARE... doesn't allow you to specify the connection limit in the create statement,
+	// so we need to set the owner after creation using ALTER DATABASE...
+	connLimit, connLimitIsSet := d.GetOk(databaseConnLimitAttr)
+	if connLimitIsSet {
+		if _, err := db.Exec(fmt.Sprintf("ALTER DATABASE %s CONNECTION LIMIT %d", pq.QuoteIdentifier(dbName), connLimit.(int))); err != nil {
+			return err
+		}
+	}
+
+	var oid string
+	query = "SELECT oid FROM pg_database WHERE datname = $1"
+	log.Printf("[DEBUG] get oid from database: %s\n", query)
+	if err := db.QueryRow(query, strings.ToLower(dbName)).Scan(&oid); err != nil {
+		return err
+	}
+
+	d.SetId(oid)
+
+	return resourceRedshiftDatabaseRead(db, d)
+}
+
+func resourceRedshiftDatabaseCreateInternal(db *DBConnection, d *schema.ResourceData) error {
 	dbName := d.Get(databaseNameAttr).(string)
 	query := fmt.Sprintf("CREATE DATABASE %s", pq.QuoteIdentifier(dbName))
 
@@ -100,23 +195,28 @@ func resourceRedshiftDatabaseCreate(db *DBConnection, d *schema.ResourceData) er
 }
 
 func resourceRedshiftDatabaseRead(db *DBConnection, d *schema.ResourceData) error {
-	var name, owner, connLimit string
+	var name, owner, connLimit, databaseType, shareName, producerAccount, producerNamespace string
 
 	query := `SELECT
   trim(svv_redshift_databases.database_name),
   trim(pg_user_info.usename),
-  COALESCE(pg_database_info.datconnlimit::text, 'UNLIMITED')
+  COALESCE(pg_database_info.datconnlimit::text, 'UNLIMITED'),
+	svv_redshift_databases.database_type,
+  trim(COALESCE(svv_datashares.share_name, '')),
+  trim(COALESCE(svv_datashares.producer_account, '')),
+  trim(COALESCE(svv_datashares.producer_namespace, ''))
 FROM
   svv_redshift_databases
 LEFT JOIN pg_database_info
   ON svv_redshift_databases.database_name=pg_database_info.datname
 LEFT JOIN pg_user_info
   ON pg_user_info.usesysid = svv_redshift_databases.database_owner
-WHERE svv_redshift_databases.database_type = 'local'
-AND pg_database_info.datid = $1
+LEFT JOIN svv_datashares
+	ON (svv_redshift_databases.database_name = svv_datashares.consumer_database AND svv_redshift_databases.database_type = 'shared' AND svv_datashares.share_type = 'INBOUND')
+WHERE pg_database_info.datid = $1
 `
 	log.Printf("[DEBUG] read database: %s\n", query)
-	err := db.QueryRow(query, d.Id()).Scan(&name, &owner, &connLimit)
+	err := db.QueryRow(query, d.Id()).Scan(&name, &owner, &connLimit, &databaseType, &shareName, &producerAccount, &producerNamespace)
 
 	if err != nil {
 		return err
@@ -132,6 +232,16 @@ AND pg_database_info.datid = $1
 	d.Set(databaseNameAttr, name)
 	d.Set(databaseOwnerAttr, owner)
 	d.Set(databaseConnLimitAttr, connLimitNumber)
+
+	dataShareConfiguration := make([]map[string]interface{}, 0, 1)
+	if databaseType == "shared" {
+		config := make(map[string]interface{})
+		config[databaseDatashareSourceShareNameAttr] = &shareName
+		config[databaseDatashareSourceAccountAttr] = &producerAccount
+		config[databaseDatashareSourceNamespaceAttr] = &producerNamespace
+		dataShareConfiguration = append(dataShareConfiguration, config)
+	}
+	d.Set(databaseDatashareSourceAttr, dataShareConfiguration)
 
 	return nil
 }
@@ -218,33 +328,4 @@ func resourceRedshiftDatabaseDelete(db *DBConnection, d *schema.ResourceData) er
 	log.Printf("[DEBUG] dropping database %s: %s\n", databaseName, query)
 	_, err := db.Exec(query)
 	return err
-}
-
-func resourceRedshiftDatabaseImport(db *DBConnection, d *schema.ResourceData) ([]*schema.ResourceData, error) {
-	var databaseType string
-
-	query := `SELECT
-  svv_redshift_databases.database_type
-FROM
-  svv_redshift_databases
-LEFT JOIN pg_database_info
-  ON svv_redshift_databases.database_name=pg_database_info.datname
-WHERE pg_database_info.datid = $1
-`
-	log.Printf("[DEBUG] read database for import: %s\n", query)
-	err := db.QueryRow(query, d.Id()).Scan(&databaseType)
-	switch {
-	case err == sql.ErrNoRows:
-		return nil, fmt.Errorf("No database found with oid %s", d.Id())
-	case err != nil:
-		return nil, err
-	case databaseType != "local":
-		return nil, fmt.Errorf("redshift_database resource is only for 'local' databases. Database with oid %s has type '%s'", d.Id(), databaseType)
-	}
-
-	err = resourceRedshiftDatabaseRead(db, d)
-	if err != nil {
-		return nil, err
-	}
-	return []*schema.ResourceData{d}, nil
 }

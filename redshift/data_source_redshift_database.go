@@ -1,17 +1,10 @@
 package redshift
 
 import (
-	"database/sql"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-)
-
-const (
-	datashareProducerNameAttr      = "datashare_producer_name"
-	datashareProducerAccountAttr   = "datashare_producer_account"
-	datashareProducerNamespaceAttr = "datashare_producer_namespace"
 )
 
 func dataSourceRedshiftDatabase() *schema.Resource {
@@ -37,39 +30,55 @@ func dataSourceRedshiftDatabase() *schema.Resource {
 				Computed:    true,
 				Description: "The maximum number of concurrent connections that can be made to this database. A value of -1 means no limit.",
 			},
-			datashareProducerNameAttr: {
-				Type:        schema.TypeString,
-				Computed:    true,
+			databaseDatashareSourceAttr: {
+				Type:        schema.TypeList,
 				Optional:    true,
-				Description: "For databases created from datashares, this is the producer's datashare name.",
-			},
-			datashareProducerAccountAttr: {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Optional:    true,
-				Description: "For databases created from datashares, this is the producer's account number.",
-			},
-			datashareProducerNamespaceAttr: {
-				Type:        schema.TypeString,
-				Computed:    true,
-				Optional:    true,
-				Description: "For databases created from datashares, this is the producer's namespace.",
+				MaxItems:    1,
+				Description: "Configuration for a database created from a redshift datashare.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						databaseDatashareSourceShareNameAttr: {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Computed:    true,
+							Description: "The name of the datashare on the producer cluster",
+							StateFunc: func(val interface{}) string {
+								return strings.ToLower(val.(string))
+							},
+						},
+						databaseDatashareSourceNamespaceAttr: {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Computed:    true,
+							Description: "The namespace (guid) of the producer cluster",
+							StateFunc: func(val interface{}) string {
+								return strings.ToLower(val.(string))
+							},
+						},
+						databaseDatashareSourceAccountAttr: {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Computed:    true,
+							Description: "The AWS account ID of the producer cluster.",
+						},
+					},
+				},
 			},
 		},
 	}
 }
 
 func dataSourceRedshiftDatabaseRead(db *DBConnection, d *schema.ResourceData) error {
-	var id, owner, connLimit string
-	var shareName, producerAccount, producerNamespace sql.NullString
+	var id, owner, connLimit, databaseType, shareName, producerAccount, producerNamespace string
 
 	err := db.QueryRow(`SELECT
   pg_database_info.datid,
   trim(pg_user_info.usename),
   COALESCE(pg_database_info.datconnlimit::text, 'UNLIMITED'),
-  trim(svv_datashares.share_name),
-  trim(svv_datashares.producer_account),
-  trim(svv_datashares.producer_namespace)
+	svv_redshift_databases.database_type,
+  trim(COALESCE(svv_datashares.share_name, '')),
+  trim(COALESCE(svv_datashares.producer_account, '')),
+  trim(COALESCE(svv_datashares.producer_namespace, ''))
 FROM
   svv_redshift_databases
 LEFT JOIN pg_database_info
@@ -77,9 +86,9 @@ LEFT JOIN pg_database_info
 LEFT JOIN pg_user_info
   ON pg_user_info.usesysid = svv_redshift_databases.database_owner
 LEFT JOIN svv_datashares
-	on (svv_datashares.share_type='INBOUND' AND svv_datashares.consumer_database=svv_redshift_databases.database_name)
+	ON (svv_redshift_databases.database_name = svv_datashares.consumer_database AND svv_redshift_databases.database_type = 'shared' AND svv_datashares.share_type = 'INBOUND')
 WHERE svv_redshift_databases.database_name = $1
-	`, d.Get(databaseNameAttr).(string)).Scan(&id, &owner, &connLimit, &shareName, &producerAccount, &producerNamespace)
+	`, d.Get(databaseNameAttr).(string)).Scan(&id, &owner, &connLimit, &databaseType, &shareName, &producerAccount, &producerNamespace)
 
 	if err != nil {
 		return err
@@ -96,23 +105,15 @@ WHERE svv_redshift_databases.database_name = $1
 	d.Set(databaseOwnerAttr, owner)
 	d.Set(databaseConnLimitAttr, connLimitNumber)
 
-	if shareName.Valid {
-		d.Set(datashareProducerNameAttr, shareName.String)
-	} else {
-		d.Set(datashareProducerNameAttr, nil)
+	dataShareConfiguration := make([]map[string]interface{}, 0, 1)
+	if databaseType == "shared" {
+		config := make(map[string]interface{})
+		config[databaseDatashareSourceShareNameAttr] = &shareName
+		config[databaseDatashareSourceAccountAttr] = &producerAccount
+		config[databaseDatashareSourceNamespaceAttr] = &producerNamespace
+		dataShareConfiguration = append(dataShareConfiguration, config)
 	}
-
-	if producerAccount.Valid {
-		d.Set(datashareProducerAccountAttr, producerAccount.String)
-	} else {
-		d.Set(datashareProducerAccountAttr, nil)
-	}
-
-	if producerNamespace.Valid {
-		d.Set(datashareProducerNamespaceAttr, producerNamespace.String)
-	} else {
-		d.Set(datashareProducerNamespaceAttr, nil)
-	}
+	d.Set(databaseDatashareSourceAttr, dataShareConfiguration)
 
 	return nil
 }

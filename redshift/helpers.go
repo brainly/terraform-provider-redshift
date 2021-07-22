@@ -84,19 +84,6 @@ func RedshiftResourceFunc(fn func(*DBConnection, *schema.ResourceData) error) fu
 	}
 }
 
-func RedshiftImportFunc(fn func(*DBConnection, *schema.ResourceData) ([]*schema.ResourceData, error)) func(*schema.ResourceData, interface{}) ([]*schema.ResourceData, error) {
-	return func(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-		client := meta.(*Client)
-
-		db, err := client.Connect()
-		if err != nil {
-			return nil, err
-		}
-
-		return fn(db, d)
-	}
-}
-
 func RedshiftResourceRetryOnPQErrors(fn func(*DBConnection, *schema.ResourceData) error) func(*DBConnection, *schema.ResourceData) error {
 	return func(db *DBConnection, d *schema.ResourceData) error {
 		for i := 0; i < 10; i++ {

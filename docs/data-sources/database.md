@@ -27,14 +27,21 @@ data "redshift_database" "database" {
 
 ### Optional
 
-- **datashare_producer_account** (String) For databases created from datashares, this is the producer's account number.
-- **datashare_producer_name** (String) For databases created from datashares, this is the producer's datashare name.
-- **datashare_producer_namespace** (String) For databases created from datashares, this is the producer's namespace.
+- **datashare_source** (Block List, Max: 1) Configuration for a database created from a redshift datashare. (see [below for nested schema](#nestedblock--datashare_source))
 - **id** (String) The ID of this resource.
 
 ### Read-Only
 
 - **connection_limit** (Number) The maximum number of concurrent connections that can be made to this database. A value of -1 means no limit.
 - **owner** (String) Owner of the database, usually the user who created it
+
+<a id="nestedblock--datashare_source"></a>
+### Nested Schema for `datashare_source`
+
+Optional:
+
+- **account_id** (String) The AWS account ID of the producer cluster.
+- **namespace** (String) The namespace (guid) of the producer cluster
+- **share_name** (String) The name of the datashare on the producer cluster
 
 

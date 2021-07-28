@@ -131,3 +131,9 @@ func (c *Config) Client() (*Client, error) {
 
 	return &client, nil
 }
+
+func (c *Client) Close() {
+	if c.db != nil {
+		c.db.Close()
+	}
+}

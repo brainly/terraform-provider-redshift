@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -91,6 +92,10 @@ func TestAccRedshiftTemporaryCredentials(t *testing.T) {
 	redshift_password := os.Getenv("REDSHIFT_PASSWORD")
 	defer os.Setenv("REDSHIFT_PASSWORD", redshift_password)
 	os.Unsetenv("REDSHIFT_PASSWORD")
+	rawUsername := os.Getenv("REDSHIFT_USER")
+	defer os.Setenv("REDSHIFT_USER", rawUsername)
+	username := strings.ToLower(permanentUsername(rawUsername))
+	os.Setenv("REDSHIFT_USER", username)
 	initTemporaryCredentialsProvider(t, provider)
 	client, ok := provider.Meta().(*Client)
 	if !ok {

@@ -1,5 +1,27 @@
 # Changelog
 
+## [v0.2.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.2.0) (2021-07-28)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.1.1...v0.2.0)
+
+**Implemented enhancements:**
+
+- Add `redshift\_schema` data source [\#10](https://github.com/brainly/terraform-provider-redshift/pull/10) ([sworisbreathing](https://github.com/sworisbreathing))
+- Use md5 hashing for redshift\_user passwords [\#7](https://github.com/brainly/terraform-provider-redshift/pull/7) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift\_user` data source [\#6](https://github.com/brainly/terraform-provider-redshift/pull/6) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift\_group` data source [\#5](https://github.com/brainly/terraform-provider-redshift/pull/5) ([sworisbreathing](https://github.com/sworisbreathing))
+- Support provider authentication using GetClusterCredentials [\#3](https://github.com/brainly/terraform-provider-redshift/pull/3) ([sworisbreathing](https://github.com/sworisbreathing))
+
+**Fixed bugs:**
+
+- Bug fixes related to temporary credentials [\#11](https://github.com/brainly/terraform-provider-redshift/pull/11) ([sworisbreathing](https://github.com/sworisbreathing))
+- Fix error changing ownership when deleting a user, if the current user has temporary credentials [\#4](https://github.com/brainly/terraform-provider-redshift/pull/4) ([sworisbreathing](https://github.com/sworisbreathing))
+
+**Merged pull requests:**
+
+- Fix typo `provider.go` [\#13](https://github.com/brainly/terraform-provider-redshift/pull/13) ([rafrafek](https://github.com/rafrafek))
+- Add GitHub action to run basic tests [\#8](https://github.com/brainly/terraform-provider-redshift/pull/8) ([winglot](https://github.com/winglot))
+
 ## [v0.1.1](https://github.com/brainly/terraform-provider-redshift/tree/v0.1.1) (2021-06-25)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.1.0...v0.1.1)

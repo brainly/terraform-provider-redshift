@@ -85,7 +85,7 @@ func Provider() *schema.Provider {
 						"cluster_identifier": {
 							Type:         schema.TypeString,
 							Required:     true,
-							Description:  "The unique identifier of the cluster that contains the database for which your are requesting credentials. This parameter is case sensitive.",
+							Description:  "The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.",
 							ValidateFunc: validation.StringLenBetween(1, 2147483647),
 						},
 						"auto_create_user": {

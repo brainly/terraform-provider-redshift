@@ -53,7 +53,7 @@ provider "redshift" {
 
 Required:
 
-- **cluster_identifier** (String) The unique identifier of the cluster that contains the database for which your are requesting credentials. This parameter is case sensitive.
+- **cluster_identifier** (String) The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.
 
 Optional:
 

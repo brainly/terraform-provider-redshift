@@ -126,3 +126,15 @@ func isRetryablePQError(code string) bool {
 	_, ok := retryable[code]
 	return ok
 }
+
+func splitCsvAndTrim(raw string) []string {
+	rawSlice := strings.Split(raw, ",")
+	result := []string{}
+	for _, s := range rawSlice {
+		trimmed := strings.TrimSpace(s)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}

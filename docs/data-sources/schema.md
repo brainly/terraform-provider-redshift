@@ -27,11 +27,147 @@ data "redshift_schema" "schema" {
 
 ### Optional
 
+- **external_schema** (Block List, Max: 1) Configures the schema as an external schema. See https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_EXTERNAL_SCHEMA.html (see [below for nested schema](#nestedblock--external_schema))
 - **id** (String) The ID of this resource.
 
 ### Read-Only
 
 - **owner** (String) Name of the schema owner.
 - **quota** (Number) The maximum amount of disk space that the specified schema can use. GB is the default unit of measurement.
+
+<a id="nestedblock--external_schema"></a>
+### Nested Schema for `external_schema`
+
+Optional:
+
+- **data_catalog_source** (Block List, Max: 1) Configures the external schema from the AWS Glue Data Catalog (see [below for nested schema](#nestedblock--external_schema--data_catalog_source))
+- **hive_metastore_source** (Block List, Max: 1) Configures the external schema from a Hive Metastore. (see [below for nested schema](#nestedblock--external_schema--hive_metastore_source))
+- **rds_mysql_source** (Block List, Max: 1) Configures the external schema to reference data using a federated query to RDS MYSQL or Aurora MySQL. (see [below for nested schema](#nestedblock--external_schema--rds_mysql_source))
+- **rds_postgres_source** (Block List, Max: 1) Configures the external schema to reference data using a federated query to RDS POSTGRES or Aurora PostgreSQL. (see [below for nested schema](#nestedblock--external_schema--rds_postgres_source))
+- **redshift_source** (Block List, Max: 1) Configures the external schema to reference datashare database. (see [below for nested schema](#nestedblock--external_schema--redshift_source))
+
+Read-Only:
+
+- **database_name** (String) The database where the external schema can be found
+
+<a id="nestedblock--external_schema--data_catalog_source"></a>
+### Nested Schema for `external_schema.data_catalog_source`
+
+Optional:
+
+- **catalog_role_arns** (List of String) The Amazon Resource Name (ARN) for the IAM roles that your cluster uses for authentication and authorization for the data catalog.
+	If this is not specified, Amazon Redshift uses the specified iam_role_arns. The catalog role must have permission to access the Data Catalog in AWS Glue or Athena.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/dg/c-spectrum-iam-policies.html.
+
+	To chain roles, you establish a trust relationship between the roles. A role that assumes another role must have a permissions policy that allows it to assume the specified role.
+	In turn, the role that passes permissions must have a trust policy that allows it to pass its permissions to another role.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html#authorizing-redshift-service-chaining-roles
+- **region** (String) If the external database is defined in an Athena data catalog or the AWS Glue Data Catalog, the AWS Region in which the database is located. This parameter is required if the database is defined in an external Data Catalog.
+
+Read-Only:
+
+- **iam_role_arns** (List of String) The Amazon Resource Name (ARN) for the IAM roles that your cluster uses for authentication and authorization.
+	As a minimum, the IAM roles must have permission to perform a LIST operation on the Amazon S3 bucket to be accessed and a GET operation on the Amazon S3 objects the bucket contains.
+	If the external database is defined in an Amazon Athena data catalog or the AWS Glue Data Catalog, the IAM role must have permission to access Athena unless catalog_role is specified.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/dg/c-spectrum-iam-policies.html.
+
+	When you attach a role to your cluster, your cluster can assume that role to access Amazon S3, Athena, and AWS Glue on your behalf.
+	If a role attached to your cluster doesn't have access to the necessary resources, you can chain another role, possibly belonging to another account.
+	Your cluster then temporarily assumes the chained role to access the data. You can also grant cross-account access by chaining roles.
+	You can chain a maximum of 10 roles. Each role in the chain assumes the next role in the chain, until the cluster assumes the role at the end of chain.
+
+	To chain roles, you establish a trust relationship between the roles. A role that assumes another role must have a permissions policy that allows it to assume the specified role.
+	In turn, the role that passes permissions must have a trust policy that allows it to pass its permissions to another role.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html#authorizing-redshift-service-chaining-roles
+
+
+<a id="nestedblock--external_schema--hive_metastore_source"></a>
+### Nested Schema for `external_schema.hive_metastore_source`
+
+Optional:
+
+- **port** (Number) The port number of the hive metastore. The default port number is 9083.
+
+Read-Only:
+
+- **hostname** (String) The hostname of the hive metastore database.
+- **iam_role_arns** (List of String) The Amazon Resource Name (ARN) for the IAM roles that your cluster uses for authentication and authorization.
+	As a minimum, the IAM roles must have permission to perform a LIST operation on the Amazon S3 bucket to be accessed and a GET operation on the Amazon S3 objects the bucket contains.
+	If the external database is defined in an Amazon Athena data catalog or the AWS Glue Data Catalog, the IAM role must have permission to access Athena unless catalog_role is specified.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/dg/c-spectrum-iam-policies.html.
+
+	When you attach a role to your cluster, your cluster can assume that role to access Amazon S3, Athena, and AWS Glue on your behalf.
+	If a role attached to your cluster doesn't have access to the necessary resources, you can chain another role, possibly belonging to another account.
+	Your cluster then temporarily assumes the chained role to access the data. You can also grant cross-account access by chaining roles.
+	You can chain a maximum of 10 roles. Each role in the chain assumes the next role in the chain, until the cluster assumes the role at the end of chain.
+
+	To chain roles, you establish a trust relationship between the roles. A role that assumes another role must have a permissions policy that allows it to assume the specified role.
+	In turn, the role that passes permissions must have a trust policy that allows it to pass its permissions to another role.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html#authorizing-redshift-service-chaining-roles
+
+
+<a id="nestedblock--external_schema--rds_mysql_source"></a>
+### Nested Schema for `external_schema.rds_mysql_source`
+
+Optional:
+
+- **port** (Number) The port number of the MySQL database. The default port number is 3306.
+
+Read-Only:
+
+- **hostname** (String) The hostname of the head node of the MySQL database replica set.
+- **iam_role_arns** (List of String) The Amazon Resource Name (ARN) for the IAM roles that your cluster uses for authentication and authorization.
+	As a minimum, the IAM roles must have permission to perform a LIST operation on the Amazon S3 bucket to be accessed and a GET operation on the Amazon S3 objects the bucket contains.
+	If the external database is defined in an Amazon Athena data catalog or the AWS Glue Data Catalog, the IAM role must have permission to access Athena unless catalog_role is specified.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/dg/c-spectrum-iam-policies.html.
+
+	When you attach a role to your cluster, your cluster can assume that role to access Amazon S3, Athena, and AWS Glue on your behalf.
+	If a role attached to your cluster doesn't have access to the necessary resources, you can chain another role, possibly belonging to another account.
+	Your cluster then temporarily assumes the chained role to access the data. You can also grant cross-account access by chaining roles.
+	You can chain a maximum of 10 roles. Each role in the chain assumes the next role in the chain, until the cluster assumes the role at the end of chain.
+
+	To chain roles, you establish a trust relationship between the roles. A role that assumes another role must have a permissions policy that allows it to assume the specified role.
+	In turn, the role that passes permissions must have a trust policy that allows it to pass its permissions to another role.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html#authorizing-redshift-service-chaining-roles
+- **secret_arn** (String) The Amazon Resource Name (ARN) of a supported MySQL database engine secret created using AWS Secrets Manager.
+	For information about how to create and retrieve an ARN for a secret, see https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_create-basic-secret.html
+	and https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_retrieve-secret.html in the AWS Secrets Manager User Guide.
+
+
+<a id="nestedblock--external_schema--rds_postgres_source"></a>
+### Nested Schema for `external_schema.rds_postgres_source`
+
+Optional:
+
+- **port** (Number) The port number of the PostgreSQL database. The default port number is 5432.
+- **schema** (String) The name of the PostgreSQL schema. The default schema is 'public'
+
+Read-Only:
+
+- **hostname** (String) The hostname of the head node of the PostgreSQL database replica set.
+- **iam_role_arns** (List of String) The Amazon Resource Name (ARN) for the IAM roles that your cluster uses for authentication and authorization.
+	As a minimum, the IAM roles must have permission to perform a LIST operation on the Amazon S3 bucket to be accessed and a GET operation on the Amazon S3 objects the bucket contains.
+	If the external database is defined in an Amazon Athena data catalog or the AWS Glue Data Catalog, the IAM role must have permission to access Athena unless catalog_role is specified.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/dg/c-spectrum-iam-policies.html.
+
+	When you attach a role to your cluster, your cluster can assume that role to access Amazon S3, Athena, and AWS Glue on your behalf.
+	If a role attached to your cluster doesn't have access to the necessary resources, you can chain another role, possibly belonging to another account.
+	Your cluster then temporarily assumes the chained role to access the data. You can also grant cross-account access by chaining roles.
+	You can chain a maximum of 10 roles. Each role in the chain assumes the next role in the chain, until the cluster assumes the role at the end of chain.
+
+	To chain roles, you establish a trust relationship between the roles. A role that assumes another role must have a permissions policy that allows it to assume the specified role.
+	In turn, the role that passes permissions must have a trust policy that allows it to pass its permissions to another role.
+	For more information, see https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html#authorizing-redshift-service-chaining-roles
+- **secret_arn** (String) The Amazon Resource Name (ARN) of a supported PostgreSQL database engine secret created using AWS Secrets Manager.
+	For information about how to create and retrieve an ARN for a secret, see https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_create-basic-secret.html
+	and https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_retrieve-secret.html in the AWS Secrets Manager User Guide.
+
+
+<a id="nestedblock--external_schema--redshift_source"></a>
+### Nested Schema for `external_schema.redshift_source`
+
+Optional:
+
+- **schema** (String) The name of the datashare schema. The default schema is 'public'.
 
 

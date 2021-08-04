@@ -137,11 +137,28 @@ func resourceRedshiftDatabaseCreateFromDatashare(db *DBConnection, d *schema.Res
 		return err
 	}
 
+	// eagerly get the resource ID in case the below statements fail for some reason
+	var oid string
+	query = "SELECT oid FROM pg_database WHERE datname = $1"
+	log.Printf("[DEBUG] get oid from database: %s\n", query)
+	if err := db.QueryRow(query, strings.ToLower(dbName)).Scan(&oid); err != nil {
+		return err
+	}
+	d.SetId(oid)
+
+	// CREATE DATABASE isn't allowed to run inside a transaction, however ALTER DATABASE
+	// can be
+	tx, err := startTransaction(db.client, "")
+	if err != nil {
+		return err
+	}
+	defer deferredRollback(tx)
+
 	// CREATE DATABASE FROM DATASHARE... doesn't allow you to specify an owner in the create statement,
 	// so we need to set the owner after creation using ALTER DATABASE...
 	owner, ownerIsSet := d.GetOk(databaseOwnerAttr)
 	if ownerIsSet {
-		if _, err := db.Exec(fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", pq.QuoteIdentifier(dbName), pq.QuoteIdentifier(owner.(string)))); err != nil {
+		if _, err = tx.Exec(fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", pq.QuoteIdentifier(dbName), pq.QuoteIdentifier(owner.(string)))); err != nil {
 			return err
 		}
 	}
@@ -150,19 +167,13 @@ func resourceRedshiftDatabaseCreateFromDatashare(db *DBConnection, d *schema.Res
 	// so we need to set the owner after creation using ALTER DATABASE...
 	connLimit, connLimitIsSet := d.GetOk(databaseConnLimitAttr)
 	if connLimitIsSet {
-		if _, err := db.Exec(fmt.Sprintf("ALTER DATABASE %s CONNECTION LIMIT %d", pq.QuoteIdentifier(dbName), connLimit.(int))); err != nil {
+		if _, err = tx.Exec(fmt.Sprintf("ALTER DATABASE %s CONNECTION LIMIT %d", pq.QuoteIdentifier(dbName), connLimit.(int))); err != nil {
 			return err
 		}
 	}
-
-	var oid string
-	query = "SELECT oid FROM pg_database WHERE datname = $1"
-	log.Printf("[DEBUG] get oid from database: %s\n", query)
-	if err := db.QueryRow(query, strings.ToLower(dbName)).Scan(&oid); err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
-
-	d.SetId(oid)
 
 	return resourceRedshiftDatabaseRead(db, d)
 }

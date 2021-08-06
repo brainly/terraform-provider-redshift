@@ -494,8 +494,14 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 	switch {
 	case sourceType == "data_catalog_source":
 		sourceConfiguration["region"] = &region
-		sourceConfiguration["iam_role_arns"] = splitCsvAndTrim(iamRole)
-		sourceConfiguration["catalog_role_arns"] = splitCsvAndTrim(catalogRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		if err != nil {
+			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
+		}
+		sourceConfiguration["catalog_role_arns"], err = splitCsvAndTrim(catalogRole)
+		if err != nil {
+			return fmt.Errorf("Error parsing catalog_role_arns: %v", err)
+		}
 	case sourceType == "hive_metastore_source":
 		sourceConfiguration["hostname"] = &hostName
 		if port != "" {
@@ -505,7 +511,10 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 			}
 			sourceConfiguration["port"] = &portNum
 		}
-		sourceConfiguration["iam_role_arns"] = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		if err != nil {
+			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
+		}
 	case sourceType == "rds_postgres_source":
 		sourceConfiguration["hostname"] = &hostName
 		if port != "" {
@@ -518,7 +527,10 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 		if sourceSchema != "" {
 			sourceConfiguration["schema"] = &sourceSchema
 		}
-		sourceConfiguration["iam_role_arns"] = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		if err != nil {
+			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
+		}
 		sourceConfiguration["secret_arn"] = &secretArn
 	case sourceType == "rds_mysql_source":
 		sourceConfiguration["hostname"] = &hostName
@@ -529,7 +541,10 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 			}
 			sourceConfiguration["port"] = &portNum
 		}
-		sourceConfiguration["iam_role_arns"] = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		if err != nil {
+			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
+		}
 		sourceConfiguration["secret_arn"] = &secretArn
 	case sourceType == "redshift_source":
 		if sourceSchema != "" {

@@ -2,6 +2,7 @@ package redshift
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"fmt"
 	"log"
 	"strings"
@@ -127,8 +128,15 @@ func isRetryablePQError(code string) bool {
 	return ok
 }
 
-func splitCsvAndTrim(raw string) []string {
-	rawSlice := strings.Split(raw, ",")
+func splitCsvAndTrim(raw string) ([]string, error) {
+	if raw == "" {
+		return []string{}, nil
+	}
+	reader := csv.NewReader(strings.NewReader(raw))
+	rawSlice, err := reader.Read()
+	if err != nil {
+		return nil, err
+	}
 	result := []string{}
 	for _, s := range rawSlice {
 		trimmed := strings.TrimSpace(s)
@@ -136,5 +144,5 @@ func splitCsvAndTrim(raw string) []string {
 			result = append(result, trimmed)
 		}
 	}
-	return result
+	return result, nil
 }

@@ -19,6 +19,11 @@ const (
 	schemaQuotaAttr           = "quota"
 	schemaCascadeOnDeleteAttr = "cascade_on_delete"
 	schemaExternalSchemaAttr  = "external_schema"
+	dataCatalogAttr           = "external_schema.0.data_catalog_source.0"
+	hiveMetastoreAttr         = "external_schema.0.hive_metastore_source.0"
+	rdsPostgresAttr           = "external_schema.0.rds_postgres_source.0"
+	rdsMysqlAttr              = "external_schema.0.rds_mysql_source.0"
+	redshiftAttr              = "external_schema.0.redshift_source.0"
 )
 
 func redshiftSchema() *schema.Resource {
@@ -640,93 +645,27 @@ func resourceRedshiftSchemaCreateExternal(tx *sql.Tx, d *schema.ResourceData) er
 	schemaName := d.Get(schemaNameAttr).(string)
 	query := fmt.Sprintf("CREATE EXTERNAL SCHEMA %s", pq.QuoteIdentifier(schemaName))
 	sourceDbName := d.Get(fmt.Sprintf("%s.0.%s", schemaExternalSchemaAttr, "database_name")).(string)
-	dataCatalogAttr := fmt.Sprintf("%s.0.%s.0", schemaExternalSchemaAttr, "data_catalog_source")
-	hiveMetastoreAttr := fmt.Sprintf("%s.0.%s.0", schemaExternalSchemaAttr, "hive_metastore_source")
-	rdsPostgresAttr := fmt.Sprintf("%s.0.%s.0", schemaExternalSchemaAttr, "rds_postgres_source")
-	rdsMysqlAttr := fmt.Sprintf("%s.0.%s.0", schemaExternalSchemaAttr, "rds_mysql_source")
-	redshiftAttr := fmt.Sprintf("%s.0.%s.0", schemaExternalSchemaAttr, "redshift_source")
+	var configQuery string
 	if _, isDataCatalog := d.GetOk(dataCatalogAttr); isDataCatalog {
 		// data catalog source
-		query = fmt.Sprintf("%s FROM DATA CATALOG DATABASE '%s'", query, pqQuoteLiteral(sourceDbName))
-		if region, hasRegion := d.GetOk(fmt.Sprintf("%s.%s", dataCatalogAttr, "region")); hasRegion {
-			query = fmt.Sprintf("%s REGION '%s'", query, pqQuoteLiteral(region.(string)))
-		}
-		iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", dataCatalogAttr, "iam_role_arns")).([]interface{})
-		iamRoleArns := []string{}
-		for _, arn := range iamRoleArnsRaw {
-			iamRoleArns = append(iamRoleArns, arn.(string))
-		}
-		query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
-		if catalogRoleArnsRaw, hasCatalogRoleArns := d.GetOk(fmt.Sprintf("%s.%s", dataCatalogAttr, "catalog_role_arns")); hasCatalogRoleArns {
-			catalogRoleArns := []string{}
-			for _, arn := range catalogRoleArnsRaw.([]interface{}) {
-				catalogRoleArns = append(catalogRoleArns, arn.(string))
-			}
-			if len(catalogRoleArns) > 0 {
-				query = fmt.Sprintf("%s CATALOG_ROLE '%s'", query, pqQuoteLiteral(strings.Join(catalogRoleArns, ",")))
-			}
-		}
-		if d.Get(fmt.Sprintf("%s.%s", dataCatalogAttr, "create_external_database_if_not_exists")).(bool) {
-			query = fmt.Sprintf("%s CREATE EXTERNAL DATABASE IF NOT EXISTS", query)
-		}
+		configQuery = getDataCatalogConfigQueryPart(d, sourceDbName)
 	} else if _, isHiveMetastore := d.GetOk(hiveMetastoreAttr); isHiveMetastore {
 		// hive metastore source
-		query = fmt.Sprintf("%s FROM HIVE METASTORE DATABASE '%s'", query, pqQuoteLiteral(sourceDbName))
-		hostName := d.Get(fmt.Sprintf("%s.%s", hiveMetastoreAttr, "hostname")).(string)
-		query = fmt.Sprintf("%s URI '%s'", query, pqQuoteLiteral(hostName))
-		if port, portIsSet := d.GetOk(fmt.Sprintf("%s.%s", hiveMetastoreAttr, "port")); portIsSet {
-			query = fmt.Sprintf("%s PORT %d", query, port.(int))
-		}
-		iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", hiveMetastoreAttr, "iam_role_arns")).([]interface{})
-		iamRoleArns := []string{}
-		for _, arn := range iamRoleArnsRaw {
-			iamRoleArns = append(iamRoleArns, arn.(string))
-		}
-		query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
+		configQuery = getHiveMetastoreConfigQueryPart(d, sourceDbName)
 	} else if _, isRdsPostgres := d.GetOk(rdsPostgresAttr); isRdsPostgres {
 		// rds postgres source
-		query = fmt.Sprintf("%s FROM POSTGRES DATABASE '%s'", query, pqQuoteLiteral(sourceDbName))
-		if sourceSchema, sourceSchemaIsSet := d.GetOk(fmt.Sprintf("%s.%s", rdsPostgresAttr, "schema")); sourceSchemaIsSet {
-			query = fmt.Sprintf("%s SCHEMA '%s'", query, pqQuoteLiteral(sourceSchema.(string)))
-		}
-		hostName := d.Get(fmt.Sprintf("%s.%s", rdsPostgresAttr, "hostname")).(string)
-		query = fmt.Sprintf("%s URI '%s'", query, pqQuoteLiteral(hostName))
-		if port, portIsSet := d.GetOk(fmt.Sprintf("%s.%s", rdsPostgresAttr, "port")); portIsSet {
-			query = fmt.Sprintf("%s PORT %d", query, port.(int))
-		}
-		iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", rdsPostgresAttr, "iam_role_arns")).([]interface{})
-		iamRoleArns := []string{}
-		for _, arn := range iamRoleArnsRaw {
-			iamRoleArns = append(iamRoleArns, arn.(string))
-		}
-		query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
-		secretArn := d.Get(fmt.Sprintf("%s.%s", rdsPostgresAttr, "secret_arn")).(string)
-		query = fmt.Sprintf("%s SECRET_ARN '%s'", query, pqQuoteLiteral(secretArn))
+		configQuery = getRdsPostgresConfigQueryPart(d, sourceDbName)
 	} else if _, isRdsMysql := d.GetOk(rdsMysqlAttr); isRdsMysql {
 		// rds mysql source
-		query = fmt.Sprintf("%s FROM MYSQL DATABASE '%s'", query, pqQuoteLiteral(sourceDbName))
-		hostName := d.Get(fmt.Sprintf("%s.%s", rdsMysqlAttr, "hostname")).(string)
-		query = fmt.Sprintf("%s URI '%s'", query, pqQuoteLiteral(hostName))
-		if port, portIsSet := d.GetOk(fmt.Sprintf("%s.%s", rdsMysqlAttr, "port")); portIsSet {
-			query = fmt.Sprintf("%s PORT %d", query, port.(int))
-		}
-		iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", rdsMysqlAttr, "iam_role_arns")).([]interface{})
-		iamRoleArns := []string{}
-		for _, arn := range iamRoleArnsRaw {
-			iamRoleArns = append(iamRoleArns, arn.(string))
-		}
-		query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
-		secretArn := d.Get(fmt.Sprintf("%s.%s", rdsMysqlAttr, "secret_arn")).(string)
-		query = fmt.Sprintf("%s SECRET_ARN '%s'", query, pqQuoteLiteral(secretArn))
+		configQuery = getRdsMysqlConfigQueryPart(d, sourceDbName)
 	} else if _, isRedshift := d.GetOk(redshiftAttr); isRedshift {
 		// redshift source
-		query = fmt.Sprintf("%s FROM REDSHIFT DATABASE '%s'", query, pqQuoteLiteral(sourceDbName))
-		if sourceSchema, sourceSchemaIsSet := d.GetOk(fmt.Sprintf("%s.%s", redshiftAttr, "schema")); sourceSchemaIsSet {
-			query = fmt.Sprintf("%s SCHEMA '%s'", query, pqQuoteLiteral(sourceSchema.(string)))
-		}
+		configQuery = getRedshiftConfigQueryPart(d, sourceDbName)
 	} else {
 		return fmt.Errorf("Can't create external schema. No source configuration found.")
 	}
+
+	query = fmt.Sprintf("%s %s", query, configQuery)
 
 	log.Printf("[DEBUG] creating external schema: %s\n", query)
 	if _, err := tx.Exec(query); err != nil {
@@ -749,6 +688,95 @@ func resourceRedshiftSchemaCreateExternal(tx *sql.Tx, d *schema.ResourceData) er
 	d.SetId(schemaOID)
 
 	return nil
+}
+
+func getDataCatalogConfigQueryPart(d *schema.ResourceData, sourceDbName string) string {
+	query := fmt.Sprintf("FROM DATA CATALOG DATABASE '%s'", pqQuoteLiteral(sourceDbName))
+	if region, hasRegion := d.GetOk(fmt.Sprintf("%s.%s", dataCatalogAttr, "region")); hasRegion {
+		query = fmt.Sprintf("%s REGION '%s'", query, pqQuoteLiteral(region.(string)))
+	}
+	iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", dataCatalogAttr, "iam_role_arns")).([]interface{})
+	iamRoleArns := []string{}
+	for _, arn := range iamRoleArnsRaw {
+		iamRoleArns = append(iamRoleArns, arn.(string))
+	}
+	query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
+	if catalogRoleArnsRaw, hasCatalogRoleArns := d.GetOk(fmt.Sprintf("%s.%s", dataCatalogAttr, "catalog_role_arns")); hasCatalogRoleArns {
+		catalogRoleArns := []string{}
+		for _, arn := range catalogRoleArnsRaw.([]interface{}) {
+			catalogRoleArns = append(catalogRoleArns, arn.(string))
+		}
+		if len(catalogRoleArns) > 0 {
+			query = fmt.Sprintf("%s CATALOG_ROLE '%s'", query, pqQuoteLiteral(strings.Join(catalogRoleArns, ",")))
+		}
+	}
+	if d.Get(fmt.Sprintf("%s.%s", dataCatalogAttr, "create_external_database_if_not_exists")).(bool) {
+		query = fmt.Sprintf("%s CREATE EXTERNAL DATABASE IF NOT EXISTS", query)
+	}
+	return query
+}
+
+func getHiveMetastoreConfigQueryPart(d *schema.ResourceData, sourceDbName string) string {
+	query := fmt.Sprintf("FROM HIVE METASTORE DATABASE '%s'", pqQuoteLiteral(sourceDbName))
+	hostName := d.Get(fmt.Sprintf("%s.%s", hiveMetastoreAttr, "hostname")).(string)
+	query = fmt.Sprintf("%s URI '%s'", query, pqQuoteLiteral(hostName))
+	if port, portIsSet := d.GetOk(fmt.Sprintf("%s.%s", hiveMetastoreAttr, "port")); portIsSet {
+		query = fmt.Sprintf("%s PORT %d", query, port.(int))
+	}
+	iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", hiveMetastoreAttr, "iam_role_arns")).([]interface{})
+	iamRoleArns := []string{}
+	for _, arn := range iamRoleArnsRaw {
+		iamRoleArns = append(iamRoleArns, arn.(string))
+	}
+	query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
+	return query
+}
+
+func getRdsPostgresConfigQueryPart(d *schema.ResourceData, sourceDbName string) string {
+	query := fmt.Sprintf("FROM POSTGRES DATABASE '%s'", pqQuoteLiteral(sourceDbName))
+	if sourceSchema, sourceSchemaIsSet := d.GetOk(fmt.Sprintf("%s.%s", rdsPostgresAttr, "schema")); sourceSchemaIsSet {
+		query = fmt.Sprintf("%s SCHEMA '%s'", query, pqQuoteLiteral(sourceSchema.(string)))
+	}
+	hostName := d.Get(fmt.Sprintf("%s.%s", rdsPostgresAttr, "hostname")).(string)
+	query = fmt.Sprintf("%s URI '%s'", query, pqQuoteLiteral(hostName))
+	if port, portIsSet := d.GetOk(fmt.Sprintf("%s.%s", rdsPostgresAttr, "port")); portIsSet {
+		query = fmt.Sprintf("%s PORT %d", query, port.(int))
+	}
+	iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", rdsPostgresAttr, "iam_role_arns")).([]interface{})
+	iamRoleArns := []string{}
+	for _, arn := range iamRoleArnsRaw {
+		iamRoleArns = append(iamRoleArns, arn.(string))
+	}
+	query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
+	secretArn := d.Get(fmt.Sprintf("%s.%s", rdsPostgresAttr, "secret_arn")).(string)
+	query = fmt.Sprintf("%s SECRET_ARN '%s'", query, pqQuoteLiteral(secretArn))
+	return query
+}
+
+func getRdsMysqlConfigQueryPart(d *schema.ResourceData, sourceDbName string) string {
+	query := fmt.Sprintf("FROM MYSQL DATABASE '%s'", pqQuoteLiteral(sourceDbName))
+	hostName := d.Get(fmt.Sprintf("%s.%s", rdsMysqlAttr, "hostname")).(string)
+	query = fmt.Sprintf("%s URI '%s'", query, pqQuoteLiteral(hostName))
+	if port, portIsSet := d.GetOk(fmt.Sprintf("%s.%s", rdsMysqlAttr, "port")); portIsSet {
+		query = fmt.Sprintf("%s PORT %d", query, port.(int))
+	}
+	iamRoleArnsRaw := d.Get(fmt.Sprintf("%s.%s", rdsMysqlAttr, "iam_role_arns")).([]interface{})
+	iamRoleArns := []string{}
+	for _, arn := range iamRoleArnsRaw {
+		iamRoleArns = append(iamRoleArns, arn.(string))
+	}
+	query = fmt.Sprintf("%s IAM_ROLE '%s'", query, pqQuoteLiteral(strings.Join(iamRoleArns, ",")))
+	secretArn := d.Get(fmt.Sprintf("%s.%s", rdsMysqlAttr, "secret_arn")).(string)
+	query = fmt.Sprintf("%s SECRET_ARN '%s'", query, pqQuoteLiteral(secretArn))
+	return query
+}
+
+func getRedshiftConfigQueryPart(d *schema.ResourceData, sourceDbName string) string {
+	query := fmt.Sprintf("FROM REDSHIFT DATABASE '%s'", pqQuoteLiteral(sourceDbName))
+	if sourceSchema, sourceSchemaIsSet := d.GetOk(fmt.Sprintf("%s.%s", redshiftAttr, "schema")); sourceSchemaIsSet {
+		query = fmt.Sprintf("%s SCHEMA '%s'", query, pqQuoteLiteral(sourceSchema.(string)))
+	}
+	return query
 }
 
 func resourceRedshiftSchemaUpdate(db *DBConnection, d *schema.ResourceData) error {

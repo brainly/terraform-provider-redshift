@@ -46,10 +46,7 @@ func testAccPreCheck(t *testing.T) {
 }
 
 func initTemporaryCredentialsProvider(t *testing.T, provider *schema.Provider) {
-	var clusterIdentifier string
-	if clusterIdentifier = os.Getenv("REDSHIFT_CLUSTER_IDENTIFIER"); clusterIdentifier == "" {
-		t.Skip("REDSHIFT_CLUSTER_IDENTIFIER must be set for acceptance tests")
-	}
+	clusterIdentifier := getEnvOrSkip("REDSHIFT_CLUSTER_IDENTIFIER", t)
 
 	sdkClient, err := stsClient(t)
 	if err != nil {

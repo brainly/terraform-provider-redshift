@@ -120,11 +120,13 @@ func Provider() *schema.Provider {
 			"redshift_group":     redshiftGroup(),
 			"redshift_schema":    redshiftSchema(),
 			"redshift_privilege": redshiftPrivilege(),
+			"redshift_database":  redshiftDatabase(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"redshift_user":   dataSourceRedshiftUser(),
-			"redshift_group":  dataSourceRedshiftGroup(),
-			"redshift_schema": dataSourceRedshiftSchema(),
+			"redshift_user":     dataSourceRedshiftUser(),
+			"redshift_group":    dataSourceRedshiftGroup(),
+			"redshift_schema":   dataSourceRedshiftSchema(),
+			"redshift_database": dataSourceRedshiftDatabase(),
 		},
 		ConfigureFunc: providerConfigure,
 	}

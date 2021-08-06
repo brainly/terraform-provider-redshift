@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.3.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.3.0) (2021-08-06)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.2.0...v0.3.0)
+
+**Implemented enhancements:**
+
+- Add external schema support [\#14](https://github.com/brainly/terraform-provider-redshift/pull/14) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift\_database` resource and data source. [\#12](https://github.com/brainly/terraform-provider-redshift/pull/12) ([sworisbreathing](https://github.com/sworisbreathing))
+
 ## [v0.2.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.2.0) (2021-07-28)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.1.1...v0.2.0)

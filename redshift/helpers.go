@@ -128,11 +128,12 @@ func isRetryablePQError(code string) bool {
 	return ok
 }
 
-func splitCsvAndTrim(raw string) ([]string, error) {
+func splitCsvAndTrim(raw string, delimiter rune) ([]string, error) {
 	if raw == "" {
 		return []string{}, nil
 	}
 	reader := csv.NewReader(strings.NewReader(raw))
+	reader.Comma = delimiter
 	rawSlice, err := reader.Read()
 	if err != nil {
 		return nil, err

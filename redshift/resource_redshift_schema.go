@@ -499,11 +499,11 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 	switch {
 	case sourceType == "data_catalog_source":
 		sourceConfiguration["region"] = &region
-		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole, ',')
 		if err != nil {
 			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
 		}
-		sourceConfiguration["catalog_role_arns"], err = splitCsvAndTrim(catalogRole)
+		sourceConfiguration["catalog_role_arns"], err = splitCsvAndTrim(catalogRole, ',')
 		if err != nil {
 			return fmt.Errorf("Error parsing catalog_role_arns: %v", err)
 		}
@@ -516,7 +516,7 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 			}
 			sourceConfiguration["port"] = &portNum
 		}
-		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole, ',')
 		if err != nil {
 			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
 		}
@@ -532,7 +532,7 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 		if sourceSchema != "" {
 			sourceConfiguration["schema"] = &sourceSchema
 		}
-		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole, ',')
 		if err != nil {
 			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
 		}
@@ -546,7 +546,7 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 			}
 			sourceConfiguration["port"] = &portNum
 		}
-		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole)
+		sourceConfiguration["iam_role_arns"], err = splitCsvAndTrim(iamRole, ',')
 		if err != nil {
 			return fmt.Errorf("Error parsing iam_role_arns: %v", err)
 		}

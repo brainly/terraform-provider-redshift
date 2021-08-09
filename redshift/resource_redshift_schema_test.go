@@ -156,7 +156,7 @@ resource "redshift_user" "schema_dl_user1" {
 func TestAccRedshiftSchema_ExternalDataCatalog(t *testing.T) {
 	dbName := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_DATA_CATALOG_DATABASE", t)
 	iamRoleArnsRaw := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_DATA_CATALOG_IAM_ROLE_ARNS", t)
-	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw)
+	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw, ',')
 	if err != nil {
 		t.Errorf("REDSHIFT_EXTERNAL_SCHEMA_DATA_CATALOG_IAM_ROLE_ARNS could not be parsed: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestAccRedshiftSchema_ExternalHive(t *testing.T) {
 	dbName := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_HIVE_DATABASE", t)
 	dbHostname := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_HIVE_HOSTNAME", t)
 	iamRoleArnsRaw := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_HIVE_IAM_ROLE_ARNS", t)
-	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw)
+	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw, ',')
 	if err != nil {
 		t.Errorf("REDSHIFT_EXTERNAL_SCHEMA_DATA_CATALOG_IAM_ROLE_ARNS could not be parsed: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestAccRedshiftSchema_ExternalRdsPostgres(t *testing.T) {
 	dbName := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_RDS_POSTGRES_DATABASE", t)
 	dbHostname := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_RDS_POSTGRES_HOSTNAME", t)
 	iamRoleArnsRaw := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_RDS_POSTGRES_IAM_ROLE_ARNS", t)
-	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw)
+	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw, ',')
 	if err != nil {
 		t.Errorf("REDSHIFT_EXTERNAL_SCHEMA_RDS_POSTGRES_IAM_ROLE_ARNS could not be parsed: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestAccRedshiftSchema_ExternalRdsMysql(t *testing.T) {
 	dbName := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_RDS_MYSQL_DATABASE", t)
 	dbHostname := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_RDS_MYSQL_HOSTNAME", t)
 	iamRoleArnsRaw := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_RDS_MYSQL_IAM_ROLE_ARNS", t)
-	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw)
+	iamRoleArns, err := splitCsvAndTrim(iamRoleArnsRaw, ',')
 	if err != nil {
 		t.Errorf("REDSHIFT_EXTERNAL_SCHEMA_RDS_MYSQL_IAM_ROLE_ARNS could not be parsed: %v", err)
 	}

@@ -1,9 +1,11 @@
 package redshift
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -74,6 +76,7 @@ such as RA3.
 			"schema": {
 				Type:        schema.TypeSet,
 				Optional:    true,
+				Computed:    true,
 				Description: "Defines which objects in the specified schema are exposed to the data share",
 				Set:         resourceRedshiftDatashareSchemaHash,
 				Elem: &schema.Resource{
@@ -124,9 +127,38 @@ such as RA3.
 }
 
 func resourceRedshiftDatashareSchemaHash(v interface{}) int {
-	schemaResource := v.(map[string]interface{})
-	schemaName := schemaResource["name"].(string)
-	return schema.HashString(schemaName)
+	var buf bytes.Buffer
+	m := v.(map[string]interface{})
+	buf.WriteString(fmt.Sprintf("%s-", m["name"].(string)))
+	buf.WriteString(fmt.Sprintf("%s-", m["mode"].(string)))
+
+	// Sort the tables/functions sets to make the hash more deterministic
+	if v, ok := m["tables"]; ok {
+		vs := v.(*schema.Set).List()
+		s := make([]string, len(vs))
+		for i, raw := range vs {
+			s[i] = raw.(string)
+		}
+		sort.Strings(s)
+
+		for _, v := range s {
+			buf.WriteString(fmt.Sprintf("%s-", v))
+		}
+	}
+
+	if v, ok := m["functions"]; ok {
+		vs := v.(*schema.Set).List()
+		s := make([]string, len(vs))
+		for i, raw := range vs {
+			s[i] = raw.(string)
+		}
+		sort.Strings(s)
+
+		for _, v := range s {
+			buf.WriteString(fmt.Sprintf("%s-", v))
+		}
+	}
+	return schema.HashString(buf.String())
 }
 
 func resourceRedshiftDatashareExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
@@ -179,15 +211,7 @@ func resourceRedshiftDatashareCreate(db *DBConnection, d *schema.ResourceData) e
 	}
 
 	for _, schema := range d.Get("schema").(*schema.Set).List() {
-		err = resourceRedshiftDatashareAddSchema(tx, d, schema.(map[string]interface{}))
-		if err != nil {
-			return err
-		}
-		err = resourceRedshiftDatashareAddTables(tx, d, schema.(map[string]interface{}))
-		if err != nil {
-			return err
-		}
-		err = resourceRedshiftDatashareAddFunctions(tx, d, schema.(map[string]interface{}))
+		err = addSchemaToDatashare(tx, shareName, schema.(map[string]interface{}))
 		if err != nil {
 			return err
 		}
@@ -200,10 +224,22 @@ func resourceRedshiftDatashareCreate(db *DBConnection, d *schema.ResourceData) e
 	return resourceRedshiftDatashareRead(db, d)
 }
 
-func resourceRedshiftDatashareAddSchema(tx *sql.Tx, d *schema.ResourceData, schema map[string]interface{}) error {
-	shareName := d.Get("name").(string)
-	schemaName := schema["name"].(string)
-	mode := schema["mode"].(string)
+func addSchemaToDatashare(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	err := resourceRedshiftDatashareAddSchema(tx, shareName, m)
+	if err != nil {
+		return err
+	}
+	err = resourceRedshiftDatashareAddTables(tx, shareName, m)
+	if err != nil {
+		return err
+	}
+	err = resourceRedshiftDatashareAddFunctions(tx, shareName, m)
+	return err
+}
+
+func resourceRedshiftDatashareAddSchema(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	schemaName := m["name"].(string)
+	mode := m["mode"].(string)
 	log.Println("[DEBUG] Adding schema to datashare")
 	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
 	if err != nil {
@@ -218,10 +254,9 @@ func resourceRedshiftDatashareAddSchema(tx *sql.Tx, d *schema.ResourceData, sche
 	return nil
 }
 
-func resourceRedshiftDatashareAddTables(tx *sql.Tx, d *schema.ResourceData, schemaConfig map[string]interface{}) error {
-	shareName := d.Get("name").(string)
-	schemaName := schemaConfig["name"].(string)
-	mode := schemaConfig["mode"].(string)
+func resourceRedshiftDatashareAddTables(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	schemaName := m["name"].(string)
+	mode := m["mode"].(string)
 	switch mode {
 	case "auto":
 		log.Println("[DEBUG] Adding all tables to datashare")
@@ -231,7 +266,7 @@ func resourceRedshiftDatashareAddTables(tx *sql.Tx, d *schema.ResourceData, sche
 		}
 	case "manual":
 		log.Println("[DEBUG] Adding individual tables to datashare")
-		for _, table := range schemaConfig["tables"].(*schema.Set).List() {
+		for _, table := range m["tables"].(*schema.Set).List() {
 			_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD TABLE %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(table.(string))))
 			if err != nil {
 				return err
@@ -243,10 +278,9 @@ func resourceRedshiftDatashareAddTables(tx *sql.Tx, d *schema.ResourceData, sche
 	return nil
 }
 
-func resourceRedshiftDatashareAddFunctions(tx *sql.Tx, d *schema.ResourceData, schemaConfig map[string]interface{}) error {
-	shareName := d.Get("name").(string)
-	schemaName := schemaConfig["name"].(string)
-	mode := schemaConfig["mode"].(string)
+func resourceRedshiftDatashareAddFunctions(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	schemaName := m["name"].(string)
+	mode := m["mode"].(string)
 	switch mode {
 	case "auto":
 		log.Println("[DEBUG] Adding all functions to datashare")
@@ -256,7 +290,7 @@ func resourceRedshiftDatashareAddFunctions(tx *sql.Tx, d *schema.ResourceData, s
 		}
 	case "manual":
 		log.Println("[DEBUG] Adding individual functions to datashare")
-		for _, table := range schemaConfig["functions"].(*schema.Set).List() {
+		for _, table := range m["functions"].(*schema.Set).List() {
 			_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD FUNCTION %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(table.(string))))
 			if err != nil {
 				return err
@@ -266,6 +300,40 @@ func resourceRedshiftDatashareAddFunctions(tx *sql.Tx, d *schema.ResourceData, s
 		return fmt.Errorf("Unsupported datashare schema mode: %s", mode)
 	}
 	return nil
+}
+
+func removeSchemaFromDatashare(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	err := resourceRedshiftDatashareRemoveFunctions(tx, shareName, m)
+	if err != nil {
+		return err
+	}
+	err = resourceRedshiftDatashareRemoveTables(tx, shareName, m)
+	if err != nil {
+		return err
+	}
+	err = resourceRedshiftDatashareRemoveSchema(tx, shareName, m)
+	return err
+}
+
+func resourceRedshiftDatashareRemoveFunctions(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	schemaName := m["name"].(string)
+	log.Println("[DEBUG] Removing all functions from datashare")
+	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL FUNCTIONS IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	return err
+}
+
+func resourceRedshiftDatashareRemoveTables(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	schemaName := m["name"].(string)
+	log.Println("[DEBUG] Removing all tables from datashare")
+	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL TABLES IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	return err
+}
+
+func resourceRedshiftDatashareRemoveSchema(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+	schemaName := m["name"].(string)
+	log.Println("[DEBUG] Removing schema from datashare")
+	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s REMOVE SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	return err
 }
 
 func resourceRedshiftDatashareRead(db *DBConnection, d *schema.ResourceData) error {
@@ -381,18 +449,264 @@ func readDatashareSchemas(tx *sql.Tx, shareName string, d *schema.ResourceData) 
 	}
 
 	// convert map to set
-	schemaSlice := make([]interface{}, 0)
+	schemas := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
 	for _, schemaDef := range schemasByName {
-		schemaSlice = append(schemaSlice, schemaDef)
+		schemas.Add(schemaDef)
 	}
-	schemas := schema.NewSet(resourceRedshiftDatashareSchemaHash, schemaSlice)
 	d.Set("schema", schemas)
 	return nil
 }
 
 func resourceRedshiftDatashareUpdate(db *DBConnection, d *schema.ResourceData) error {
-	// TODO implement
+	tx, err := startTransaction(db.client, "")
+	if err != nil {
+		return err
+	}
+	defer deferredRollback(tx)
+
+	if err := setDatashareName(tx, d); err != nil {
+		return err
+	}
+
+	if err := setDatashareOwner(tx, d); err != nil {
+		return err
+	}
+
+	if err := setDatasharePubliclyAccessble(tx, d); err != nil {
+		return err
+	}
+
+	if err := setDatashareSchemas(tx, d); err != nil {
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return resourceRedshiftDatashareRead(db, d)
+}
+
+func setDatashareName(tx *sql.Tx, d *schema.ResourceData) error {
+	if !d.HasChange("name") {
+		return nil
+	}
+	oldRaw, newRaw := d.GetChange("name")
+	oldValue := oldRaw.(string)
+	newValue := newRaw.(string)
+	if newValue == "" {
+		return fmt.Errorf("Error setting datashare name to an empty string")
+	}
+	query := fmt.Sprintf("ALTER DATASHARE %s RENAME TO %s", pq.QuoteIdentifier(oldValue), pq.QuoteIdentifier(newValue))
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("Error updating datashare NAME :%w", err)
+	}
 	return nil
+}
+
+func setDatashareOwner(tx *sql.Tx, d *schema.ResourceData) error {
+	if !d.HasChange("owner") {
+		return nil
+	}
+	shareName := d.Get("name").(string)
+	_, newRaw := d.GetChange("owner")
+	newValue := newRaw.(string)
+	if newValue == "" {
+		newValue = "CURRENT_USER"
+	} else {
+		newValue = pq.QuoteIdentifier(newValue)
+	}
+
+	query := fmt.Sprintf("ALTER DATASHARE %s OWNER TO %s", pq.QuoteIdentifier(shareName), newValue)
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("Error updating datashare OWNER :%w", err)
+	}
+	return nil
+}
+
+func setDatasharePubliclyAccessble(tx *sql.Tx, d *schema.ResourceData) error {
+	if !d.HasChange("publicly_accessible") {
+		return nil
+	}
+
+	shareName := d.Get("name").(string)
+	newValue := d.Get("publicly_accessible").(bool)
+	query := fmt.Sprintf("ALTER DATASHARE %s SET PUBLICACCESSIBLE %t", pq.QuoteIdentifier(shareName), newValue)
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("Error updating datashare PUBLICACCESSBILE :%w", err)
+	}
+	return nil
+}
+
+func setDatashareSchemas(tx *sql.Tx, d *schema.ResourceData) error {
+	if !d.HasChange("schema") {
+		return nil
+	}
+	oldRaw, newRaw := d.GetChange("schema")
+	if oldRaw == nil {
+		oldRaw = schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	}
+	if newRaw == nil {
+		newRaw = schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	}
+	oldCollapsed, err := resourceRedshiftDatashareCollapseSchemas(oldRaw.(*schema.Set))
+	if err != nil {
+		return err
+	}
+	newCollapsed, err := resourceRedshiftDatashareCollapseSchemas(newRaw.(*schema.Set))
+	if err != nil {
+		return err
+	}
+
+	add, remove, _ := computeDatashareSchemaChanges(oldCollapsed, newCollapsed)
+	shareName := d.Get("name").(string)
+	for _, s := range add.List() {
+		if err := addSchemaToDatashare(tx, shareName, s.(map[string]interface{})); err != nil {
+			return err
+		}
+	}
+	for _, s := range remove.List() {
+		if err := removeSchemaFromDatashare(tx, shareName, s.(map[string]interface{})); err != nil {
+			return err
+		}
+	}
+
+	// For modifications, we need to see what's changed
+	//if err := updateDatashareSchemaObjects(tx, shareName, modify); err != nil {
+	//	return err
+	//}
+	return nil
+}
+
+// now we just need to deal with modifications to existing datashare schemas.
+
+/*oldExpanded := resourceRedshiftDatashareExpandSchemas(oldCollapsed)
+	log.Printf("[DEBUG] Old schemas: %#v\n", oldExpanded)
+	newExpanded := resourceRedshiftDatashareExpandSchemas(newCollapsed)
+	log.Printf("[DEBUG] New schemas: %#v\n", newExpanded)
+
+	remove := oldExpanded.Difference(newExpanded).List()
+	log.Printf("[DEBUG] schemas to remove: %#v\n", remove)
+	for _, object := range remove {
+		log.Printf("[DEBUG] Remove %#v\n", object)
+	}
+
+	add := newExpanded.Difference(oldExpanded).List()
+	log.Printf("[DEBUG] schemas to add: %#v\n", add)
+	for _, object := range add {
+		log.Printf("[DEBUG] Add %#v\n", object)
+	}
+	return nil
+}*/
+
+func computeDatashareSchemaChanges(old *schema.Set, new *schema.Set) (add *schema.Set, remove *schema.Set, modify *schema.Set) {
+	add = schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	remove = schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	modify = schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+
+	oldNames := schema.NewSet(schema.HashString, nil)
+	for _, s := range old.List() {
+		m := s.(map[string]interface{})
+		oldNames.Add(m["name"])
+	}
+	newNames := schema.NewSet(schema.HashString, nil)
+	for _, s := range new.List() {
+		m := s.(map[string]interface{})
+		newNames.Add(m["name"])
+	}
+	removeNames := oldNames.Difference(newNames)
+	addNames := newNames.Difference(oldNames)
+
+	// populate remove result
+	for _, s := range old.List() {
+		m := s.(map[string]interface{})
+		if removeNames.Contains(m["name"]) {
+			remove.Add(s)
+		}
+	}
+
+	// populate add/modify result
+	for _, s := range new.List() {
+		m := s.(map[string]interface{})
+		if addNames.Contains(m["name"]) {
+			add.Add(s)
+		} else {
+			modify.Add(s)
+		}
+	}
+
+	return
+}
+
+func resourceRedshiftDatashareExpandSchemas(schemas *schema.Set) *schema.Set {
+	keysToExpand := []string{"tables", "functions"}
+	normalized := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	for _, rawObject := range schemas.List() {
+		m := rawObject.(map[string]interface{})
+		for _, key := range keysToExpand {
+			item, exists := m[key]
+			if exists {
+				for _, v := range item.(*schema.Set).List() {
+					newV := schema.NewSet(schema.HashString, nil)
+					newV.Add(v)
+					newSchemaConfig := resourceRedshiftDatashareCopySchemaObject(m, key, newV)
+					normalized.Add(newSchemaConfig)
+				}
+			}
+		}
+	}
+	return normalized
+}
+
+func resourceRedshiftDatashareCollapseSchemas(schemas *schema.Set) (*schema.Set, error) {
+	keysToCollapse := []string{"tables", "functions"}
+	schemasByName := make(map[string]map[string]interface{})
+	for _, rawObject := range schemas.List() {
+		m := rawObject.(map[string]interface{})
+		name := m["name"].(string)
+		current, found := schemasByName[name]
+		if !found {
+			schemasByName[name] = m
+			current = m
+		} else {
+			// Due to some weirdness with how schema.TypeSet hashing works, we can end up in a situation where we have
+			// multiple attribute blocks for the same datashare schema.
+			// We're fine as long as all of the blocks use the same mode.
+			if current["mode"] != m["mode"] {
+				return nil, fmt.Errorf("Found multiple schema declarations for schema %s with different modes.", name)
+			}
+		}
+		for _, key := range keysToCollapse {
+			if currentObjects, found := current[key]; found {
+				if objects, ok := m[key]; ok {
+					current[key] = currentObjects.(*schema.Set).Union(objects.(*schema.Set))
+				}
+			} else {
+				if objects, ok := m[key]; ok {
+					current[key] = objects
+				}
+			}
+		}
+	}
+	results := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	for _, m := range schemasByName {
+		results.Add(m)
+	}
+	return results, nil
+}
+
+func resourceRedshiftDatashareCopySchemaObject(src map[string]interface{}, k string, v interface{}) map[string]interface{} {
+	keysToCopy := []string{"name", "mode"}
+	dst := make(map[string]interface{})
+	for _, key := range keysToCopy {
+		if val, ok := src[key]; ok {
+			dst[key] = val
+		}
+	}
+	if k != "" {
+		dst[k] = v
+	}
+	return dst
 }
 
 func resourceRedshiftDatashareDelete(db *DBConnection, d *schema.ResourceData) error {

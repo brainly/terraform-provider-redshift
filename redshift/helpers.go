@@ -147,3 +147,21 @@ func splitCsvAndTrim(raw string, delimiter rune) ([]string, error) {
 	}
 	return result, nil
 }
+
+func setToMap(set *schema.Set, key string) map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+	for _, s := range set.List() {
+		m := s.(map[string]interface{})
+		id := m[key].(string)
+		result[id] = m
+	}
+	return result
+}
+
+func mapToSet(mapOfMaps map[string]map[string]interface{}, hashFunction schema.SchemaSetFunc) *schema.Set {
+	result := schema.NewSet(hashFunction, nil)
+	for _, m := range mapOfMaps {
+		result.Add(m)
+	}
+	return result
+}

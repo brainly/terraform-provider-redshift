@@ -558,7 +558,7 @@ func setDatashareSchemas(tx *sql.Tx, d *schema.ResourceData) error {
 		return err
 	}
 
-	add, remove, _ := computeDatashareSchemaChanges(oldCollapsed, newCollapsed)
+	add, remove, modify := computeDatashareSchemaChanges(oldCollapsed, newCollapsed)
 	shareName := d.Get("name").(string)
 	for _, s := range add.List() {
 		if err := addSchemaToDatashare(tx, shareName, s.(map[string]interface{})); err != nil {
@@ -572,16 +572,26 @@ func setDatashareSchemas(tx *sql.Tx, d *schema.ResourceData) error {
 	}
 
 	// For modifications, we need to see what's changed
-	//if err := updateDatashareSchemaObjects(tx, shareName, modify); err != nil {
-	//	return err
-	//}
+	oldCollapsedMap := setToMap(oldCollapsed, "name")
+	for _, s := range modify.List() {
+		after := s.(map[string]interface{})
+		schemaName := after["name"].(string)
+		before := oldCollapsedMap[schemaName]
+		if err := updateDatashareSchemaObjects(tx, shareName, before, after); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// now we just need to deal with modifications to existing datashare schemas.
-
-/*oldExpanded := resourceRedshiftDatashareExpandSchemas(oldCollapsed)
+func updateDatashareSchemaObjects(tx *sql.Tx, shareName string, before map[string]interface{}, after map[string]interface{}) error {
+	// now we just need to deal with modifications to existing datashare schemas.
+	oldCollapsed := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	oldCollapsed.Add(before)
+	oldExpanded := resourceRedshiftDatashareExpandSchemas(oldCollapsed)
 	log.Printf("[DEBUG] Old schemas: %#v\n", oldExpanded)
+	newCollapsed := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
+	newCollapsed.Add(after)
 	newExpanded := resourceRedshiftDatashareExpandSchemas(newCollapsed)
 	log.Printf("[DEBUG] New schemas: %#v\n", newExpanded)
 
@@ -597,7 +607,7 @@ func setDatashareSchemas(tx *sql.Tx, d *schema.ResourceData) error {
 		log.Printf("[DEBUG] Add %#v\n", object)
 	}
 	return nil
-}*/
+}
 
 func computeDatashareSchemaChanges(old *schema.Set, new *schema.Set) (add *schema.Set, remove *schema.Set, modify *schema.Set) {
 	add = schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)

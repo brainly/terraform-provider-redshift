@@ -240,13 +240,16 @@ func addSchemaToDatashare(tx *sql.Tx, shareName string, m map[string]interface{}
 func resourceRedshiftDatashareAddSchema(tx *sql.Tx, shareName string, m map[string]interface{}) error {
 	schemaName := m["name"].(string)
 	mode := m["mode"].(string)
-	log.Println("[DEBUG] Adding schema to datashare")
-	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	query := fmt.Sprintf("ALTER DATASHARE %s ADD SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
 	if err != nil {
 		return err
 	}
 	if mode == "auto" {
-		_, err = tx.Exec(fmt.Sprintf("ALTER DATASHARE %s SET INCLUDENEW = TRUE FOR SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+		query = fmt.Sprintf("ALTER DATASHARE %s SET INCLUDENEW = TRUE FOR SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+		log.Printf("[DEBUG] %s\n", query)
+		_, err = tx.Exec(query)
 		if err != nil {
 			return err
 		}
@@ -259,15 +262,11 @@ func resourceRedshiftDatashareAddTables(tx *sql.Tx, shareName string, m map[stri
 	mode := m["mode"].(string)
 	switch mode {
 	case "auto":
-		log.Println("[DEBUG] Adding all tables to datashare")
-		_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD ALL TABLES IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
-		if err != nil {
-			return err
-		}
+		return resourceRedshiftDatashareAddAllTables(tx, shareName, schemaName)
 	case "manual":
 		log.Println("[DEBUG] Adding individual tables to datashare")
-		for _, table := range m["tables"].(*schema.Set).List() {
-			_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD TABLE %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(table.(string))))
+		for _, tableName := range m["tables"].(*schema.Set).List() {
+			err := resourceRedshiftDatashareAddTable(tx, shareName, schemaName, tableName.(string))
 			if err != nil {
 				return err
 			}
@@ -283,15 +282,11 @@ func resourceRedshiftDatashareAddFunctions(tx *sql.Tx, shareName string, m map[s
 	mode := m["mode"].(string)
 	switch mode {
 	case "auto":
-		log.Println("[DEBUG] Adding all functions to datashare")
-		_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD ALL FUNCTIONS IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
-		if err != nil {
-			return err
-		}
+		return resourceRedshiftDatashareAddAllFunctions(tx, shareName, schemaName)
 	case "manual":
 		log.Println("[DEBUG] Adding individual functions to datashare")
-		for _, table := range m["functions"].(*schema.Set).List() {
-			_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s ADD FUNCTION %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(table.(string))))
+		for _, functionName := range m["functions"].(*schema.Set).List() {
+			err := resourceRedshiftDatashareAddFunction(tx, shareName, schemaName, functionName.(string))
 			if err != nil {
 				return err
 			}
@@ -302,12 +297,40 @@ func resourceRedshiftDatashareAddFunctions(tx *sql.Tx, shareName string, m map[s
 	return nil
 }
 
+func resourceRedshiftDatashareAddAllFunctions(tx *sql.Tx, shareName string, schemaName string) error {
+	query := fmt.Sprintf("ALTER DATASHARE %s ADD ALL FUNCTIONS IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+	log.Printf("[DEBUG] %s", query)
+	_, err := tx.Exec(query)
+	return err
+}
+
+func resourceRedshiftDatashareAddFunction(tx *sql.Tx, shareName string, schemaName string, functionName string) error {
+	query := fmt.Sprintf("ALTER DATASHARE %s ADD FUNCTION %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(functionName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
+	return err
+}
+
+func resourceRedshiftDatashareAddAllTables(tx *sql.Tx, shareName string, schemaName string) error {
+	query := fmt.Sprintf("ALTER DATASHARE %s ADD ALL TABLES IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
+	return err
+}
+
+func resourceRedshiftDatashareAddTable(tx *sql.Tx, shareName string, schemaName string, tableName string) error {
+	query := fmt.Sprintf("ALTER DATASHARE %s ADD TABLE %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
+	return err
+}
+
 func removeSchemaFromDatashare(tx *sql.Tx, shareName string, m map[string]interface{}) error {
-	err := resourceRedshiftDatashareRemoveFunctions(tx, shareName, m)
+	err := resourceRedshiftDatashareRemoveAllFunctions(tx, shareName, m)
 	if err != nil {
 		return err
 	}
-	err = resourceRedshiftDatashareRemoveTables(tx, shareName, m)
+	err = resourceRedshiftDatashareRemoveAllTables(tx, shareName, m)
 	if err != nil {
 		return err
 	}
@@ -315,24 +338,41 @@ func removeSchemaFromDatashare(tx *sql.Tx, shareName string, m map[string]interf
 	return err
 }
 
-func resourceRedshiftDatashareRemoveFunctions(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+func resourceRedshiftDatashareRemoveAllFunctions(tx *sql.Tx, shareName string, m map[string]interface{}) error {
 	schemaName := m["name"].(string)
-	log.Println("[DEBUG] Removing all functions from datashare")
-	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL FUNCTIONS IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	query := fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL FUNCTIONS IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
 	return err
 }
 
-func resourceRedshiftDatashareRemoveTables(tx *sql.Tx, shareName string, m map[string]interface{}) error {
+func resourceRedshiftDatashareRemoveFunction(tx *sql.Tx, shareName string, schemaName string, functionName string) error {
+	query := fmt.Sprintf("ALTER DATASHARE %s REMOVE FUNCTION %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(functionName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
+	return err
+}
+
+func resourceRedshiftDatashareRemoveAllTables(tx *sql.Tx, shareName string, m map[string]interface{}) error {
 	schemaName := m["name"].(string)
-	log.Println("[DEBUG] Removing all tables from datashare")
-	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL TABLES IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	query := fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL TABLES IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
+	return err
+}
+
+func resourceRedshiftDatashareRemoveTable(tx *sql.Tx, shareName string, schemaName string, tableName string) error {
+	query := fmt.Sprintf("ALTER DATASHARE %s REMOVE TABLE %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
 	return err
 }
 
 func resourceRedshiftDatashareRemoveSchema(tx *sql.Tx, shareName string, m map[string]interface{}) error {
 	schemaName := m["name"].(string)
-	log.Println("[DEBUG] Removing schema from datashare")
-	_, err := tx.Exec(fmt.Sprintf("ALTER DATASHARE %s REMOVE SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName)))
+	query := fmt.Sprintf("ALTER DATASHARE %s REMOVE SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+	log.Printf("[DEBUG] %s\n", query)
+	_, err := tx.Exec(query)
 	return err
 }
 
@@ -586,25 +626,79 @@ func setDatashareSchemas(tx *sql.Tx, d *schema.ResourceData) error {
 
 func updateDatashareSchemaObjects(tx *sql.Tx, shareName string, before map[string]interface{}, after map[string]interface{}) error {
 	// now we just need to deal with modifications to existing datashare schemas.
+	schemaName := after["name"].(string)
+	if strings.ToLower(after["mode"].(string)) == "auto" {
+		log.Printf("[INFO] Changing schema %s in datashare %s from manual mode to auto mode\n", schemaName, shareName)
+		// short-circuit the complicated logic below because we're adding all tables/functions.
+		query := fmt.Sprintf("ALTER DATASHARE %s SET INCLUDENEW = TRUE FOR SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+		log.Printf("[DEBUG] %s\n", query)
+		if _, err := tx.Exec(query); err != nil {
+			return err
+		}
+		err := resourceRedshiftDatashareAddAllTables(tx, shareName, schemaName)
+		if err != nil {
+			return err
+		}
+		return resourceRedshiftDatashareAddAllFunctions(tx, shareName, schemaName)
+	}
+	// manual mode. Process individual table/view changes.
+	if strings.ToLower(before["mode"].(string)) == "auto" {
+		log.Printf("[INFO] Changing schema %s in datashare %s from auto mode to manual mode\n", schemaName, shareName)
+		query := fmt.Sprintf("ALTER DATASHARE %s SET INCLUDENEW = FALSE FOR SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
+		log.Printf("[DEBUG] %s\n", query)
+		if _, err := tx.Exec(query); err != nil {
+			return err
+		}
+	}
 	oldCollapsed := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
 	oldCollapsed.Add(before)
 	oldExpanded := resourceRedshiftDatashareExpandSchemas(oldCollapsed)
-	log.Printf("[DEBUG] Old schemas: %#v\n", oldExpanded)
 	newCollapsed := schema.NewSet(resourceRedshiftDatashareSchemaHash, nil)
 	newCollapsed.Add(after)
 	newExpanded := resourceRedshiftDatashareExpandSchemas(newCollapsed)
-	log.Printf("[DEBUG] New schemas: %#v\n", newExpanded)
 
 	remove := oldExpanded.Difference(newExpanded).List()
-	log.Printf("[DEBUG] schemas to remove: %#v\n", remove)
 	for _, object := range remove {
-		log.Printf("[DEBUG] Remove %#v\n", object)
+		m := object.(map[string]interface{})
+		schemaName := m["name"].(string)
+		if tables, ok := m["tables"]; ok {
+			for _, tableName := range tables.(*schema.Set).List() {
+				err := resourceRedshiftDatashareRemoveTable(tx, shareName, schemaName, tableName.(string))
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if functions, ok := m["functions"]; ok {
+			for _, functionName := range functions.(*schema.Set).List() {
+				err := resourceRedshiftDatashareRemoveFunction(tx, shareName, schemaName, functionName.(string))
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	add := newExpanded.Difference(oldExpanded).List()
-	log.Printf("[DEBUG] schemas to add: %#v\n", add)
 	for _, object := range add {
-		log.Printf("[DEBUG] Add %#v\n", object)
+		m := object.(map[string]interface{})
+		schemaName := m["name"].(string)
+		if tables, ok := m["tables"]; ok {
+			for _, tableName := range tables.(*schema.Set).List() {
+				err := resourceRedshiftDatashareAddTable(tx, shareName, schemaName, tableName.(string))
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if functions, ok := m["functions"]; ok {
+			for _, functionName := range functions.(*schema.Set).List() {
+				err := resourceRedshiftDatashareAddFunction(tx, shareName, schemaName, functionName.(string))
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

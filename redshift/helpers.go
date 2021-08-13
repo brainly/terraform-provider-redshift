@@ -17,6 +17,7 @@ const (
 	pqErrorCodeInvalidSchemaName = "3F000"
 	pqErrorCodeDeadlock          = "40P01"
 	pqErrorCodeFailedTransaction = "25P02"
+	pqErrorCodeDuplicateSchema   = "42P06"
 )
 
 // startTransaction starts a new DB transaction on the specified database.

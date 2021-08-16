@@ -38,6 +38,12 @@ REDSHIFT_PASSWORD=<password>
 make testacc
 ```
 
+If your cluster is only accessible from within the VPC, you can connect via a socks proxy:
+```sh
+ALL_PROXY=socks5[h]://[<socks-user>:<socks-password>@]<socks-host>[:<socks-port>]
+NO_PROXY=127.0.0.1,192.168.0.0/24,*.example.com,localhost
+```
+
 ## Documentation
 
 Documentation is generated with

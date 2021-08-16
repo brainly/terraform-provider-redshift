@@ -60,3 +60,30 @@ Optional:
 - **auto_create_user** (Boolean) Create a database user with the name specified for the user if one does not exist.
 - **db_groups** (Set of String) A list of the names of existing database groups that the user will join for the current session, in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
 - **duration_seconds** (Number) The number of seconds until the returned temporary password expires.
+
+## Proxy Support
+
+If your Redshift cluster is only accessible from within a VPC, you can use the `ALL_PROXY` (`all_proxy`)
+and `NO_PROXY` (`no_proxy`) environment variables to configure the provider to access Redshift through
+a SOCKS5 proxy
+
+```
+ALL_PROXY=socks5[h]://[<socks5-username>:<socks5-password>@]<socks5-hostname>[:<socks5-port>]
+NO_PROXY=#....
+```
+
+### `ALL_PROXY` URL parameters
+* scheme: can be either `socks5` or `socks5h`. The `h` is optional and [does not change the behavior](https://cs.opensource.google/go/x/net/+/3a7c4785:proxy/proxy.go;l=92).
+* `socks5-username` - optional username for authenticating to the socks proxy
+* `socks5-password` - optional password for authenticating to the socks proxy
+* `socks5-hostname` - the socks proxy hostname or IP address
+* `socks5-port` - optional port number for the socks proxy. Default port is [1080](https://cs.opensource.google/go/x/net/+/3a7c4785:proxy/proxy.go;l=96)
+
+### `NO_PROXY` Format
+
+`NO_PROXY`/`no_proxy` is an optional environment variable which bypasses `ALL_PROXY`/`all_proxy`
+for specific hosts. This is a [comma-separated string, where each value is one of](https://cs.opensource.google/go/x/net/+/3a7c4785:proxy/per_host.go;l=92-96):
+* IP address (e.g. `127.0.0.1`)
+* CIDR range (e.g. `192.168.0.0/24`)
+* zone (e.g. `*.example.com`)
+* hostname (e.g. `localhost`)

@@ -121,6 +121,7 @@ func Provider() *schema.Provider {
 			"redshift_schema":    redshiftSchema(),
 			"redshift_privilege": redshiftPrivilege(),
 			"redshift_database":  redshiftDatabase(),
+			"redshift_datashare": redshiftDatashare(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"redshift_user":      dataSourceRedshiftUser(),

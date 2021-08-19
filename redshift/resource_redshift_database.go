@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -20,8 +19,6 @@ const databaseDatashareSourceAttr = "datashare_source"
 const databaseDatashareSourceShareNameAttr = "share_name"
 const databaseDatashareSourceNamespaceAttr = "namespace"
 const databaseDatashareSourceAccountAttr = "account_id"
-
-var awsAccountIdRegexp = regexp.MustCompile(`^\d{12}$`)
 
 func redshiftDatabase() *schema.Resource {
 	return &schema.Resource{

@@ -58,7 +58,7 @@ func (c *Client) Connect() (*DBConnection, error) {
 	dsn := c.config.connStr(c.databaseName)
 	conn, found := dbRegistry[dsn]
 	if !found {
-		db, err := sql.Open("postgres", dsn)
+		db, err := sql.Open(proxyDriverName, dsn)
 		if err != nil {
 			return nil, fmt.Errorf("Error connecting to PostgreSQL server %s: %w", c.config.Host, err)
 		}
@@ -118,7 +118,7 @@ func (c *Config) Client() (*Client, error) {
 		c.Port,
 		c.Database)
 
-	db, err := sql.Open("postgres", conninfo)
+	db, err := sql.Open(proxyDriverName, conninfo)
 	if err != nil {
 		db.Close()
 		return nil, err

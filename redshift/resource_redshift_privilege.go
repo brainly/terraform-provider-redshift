@@ -257,12 +257,6 @@ func readGroupTablePrivileges(tx *sql.Tx, d *schema.ResourceData, groupID, schem
 	return nil
 }
 
-func appendIfTrue(condition bool, item string, list *[]string) {
-	if condition {
-		*list = append(*list, item)
-	}
-}
-
 func generatePrivilegesID(d *schema.ResourceData) string {
 	schemaName := d.Get(privilegeSchemaAttr).(string)
 	groupName := d.Get(privilegeGroupAttr).(string)
@@ -339,28 +333,4 @@ func execQueryIfNotEmpty(tx *sql.Tx, query string) error {
 
 	_, err := tx.Exec(query)
 	return err
-}
-
-func validatePrivileges(privileges []string, objectType string) bool {
-	for _, p := range privileges {
-		switch strings.ToUpper(objectType) {
-		case "SCHEMA":
-			switch strings.ToUpper(p) {
-			case "CREATE", "USAGE":
-				continue
-			default:
-				return false
-			}
-		case "TABLE":
-			switch strings.ToUpper(p) {
-			case "SELECT", "UPDATE", "INSERT", "DELETE", "REFERENCES":
-				continue
-			default:
-				return false
-			}
-		}
-
-	}
-
-	return true
 }

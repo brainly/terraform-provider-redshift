@@ -68,6 +68,11 @@ func getGroupIDFromName(tx *sql.Tx, group string) (groupID int, err error) {
 	return
 }
 
+func getUserIDFromName(tx *sql.Tx, user string) (userID int, err error) {
+	err = tx.QueryRow("SELECT usesysid FROM pg_user WHERE usename = $1", user).Scan(&userID)
+	return
+}
+
 func getSchemaIDFromName(tx *sql.Tx, schema string) (schemaID int, err error) {
 	err = tx.QueryRow("SELECT oid FROM pg_namespace WHERE nspname = $1", schema).Scan(&schemaID)
 	return
@@ -146,4 +151,34 @@ func splitCsvAndTrim(raw string) ([]string, error) {
 		}
 	}
 	return result, nil
+}
+
+func validatePrivileges(privileges []string, objectType string) bool {
+	for _, p := range privileges {
+		switch strings.ToUpper(objectType) {
+		case "SCHEMA":
+			switch strings.ToUpper(p) {
+			case "CREATE", "USAGE":
+				continue
+			default:
+				return false
+			}
+		case "TABLE":
+			switch strings.ToUpper(p) {
+			case "SELECT", "UPDATE", "INSERT", "DELETE", "REFERENCES":
+				continue
+			default:
+				return false
+			}
+		}
+
+	}
+
+	return true
+}
+
+func appendIfTrue(condition bool, item string, list *[]string) {
+	if condition {
+		*list = append(*list, item)
+	}
 }

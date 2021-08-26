@@ -169,6 +169,10 @@ func resourceRedshiftGrantReadImpl(db *DBConnection, d *schema.ResourceData) err
 	switch objectType {
 	case "database":
 		return readGroupDatabaseGrants(db, d)
+	case "schema":
+		return readGroupSchemaGrants(db, d)
+	case "table":
+		return readGroupTableGrants(db, d)
 	default:
 		return fmt.Errorf("Unsupported %s %s", grantObjectTypeAttr, objectType)
 	}
@@ -203,48 +207,99 @@ func readGroupDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 	return nil
 }
 
-func readGroupGrantsForTables(tx *sql.Tx, groupName, schemaName string, tablesNames []string) ([]string, error) {
-	var tables, tableSelect, tableUpdate, tableInsert, tableDelete, tableReferences int
+func readGroupSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
+	groupName := d.Get(grantGroupAttr).(string)
+	schemaName := d.Get(grantSchemaAttr).(string)
+
+	var schemaCreate, schemaUsage bool
+
 	query := `
   SELECT
-    nvl(count(cl.relname), 0) tables,
-    nvl(sum(decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),pu.groname,2 ) ,'/',1)), 0,0,1)), 0) as select,
-    nvl(sum(decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),pu.groname,2 ) ,'/',1)), 0,0,1)), 0) as update,
-    nvl(sum(decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),pu.groname,2 ) ,'/',1)), 0,0,1)), 0) as insert,
-    nvl(sum(decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),pu.groname,2 ) ,'/',1)), 0,0,1)), 0) as delete,
-    nvl(sum(decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),pu.groname,2 ) ,'/',1)), 0,0,1)), 0) as references
-  FROM pg_class cl
-  JOIN pg_group gr ON array_to_string(cl.relacl, '|') LIKE '%group '||gr.groname||'=%'
-  JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
+    decode(charindex('C',split_part(split_part(array_to_string(ns.nspacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as create,
+    decode(charindex('U',split_part(split_part(array_to_string(ns.nspacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as usage
+  FROM pg_namespace ns, pg_group gr
   WHERE
-    cl.relkind = 'r'
-    AND gr.groname=$1
-    AND nsp.nspname=$2
+    ns.nspname=$1 
+    AND gr.groname=$2
 `
 
-	var err error = nil
-	if len(tablesNames) > 0 {
-		query = fmt.Sprintf("%s AND cl.relname = ANY($3)", query)
-		err = tx.QueryRow(query, groupName, schemaName, pq.Array(tablesNames)).Scan(tables, tableSelect, tableUpdate, tableInsert, tableDelete, tableReferences)
-	} else {
-		err = tx.QueryRow(query, groupName, schemaName).Scan(tableSelect, tableUpdate, tableInsert, tableDelete, tableReferences)
-	}
-
-	if err != nil {
-		return []string{}, fmt.Errorf("failed to collect group privileges: %w", err)
+	if err := db.QueryRow(query, schemaName, groupName).Scan(&schemaCreate, &schemaUsage); err != nil {
+		return err
 	}
 
 	privileges := []string{}
-	expectedPrivileges := len(tablesNames)
-	appendIfTrue(tableSelect == expectedPrivileges, "select", &privileges)
-	appendIfTrue(tableUpdate == expectedPrivileges, "update", &privileges)
-	appendIfTrue(tableInsert == expectedPrivileges, "insert", &privileges)
-	appendIfTrue(tableDelete == expectedPrivileges, "delete", &privileges)
-	appendIfTrue(tableReferences == expectedPrivileges, "references", &privileges)
+	appendIfTrue(schemaCreate, "create", &privileges)
+	appendIfTrue(schemaUsage, "usage", &privileges)
 
-	log.Printf("[DEBUG] Collected privileges for group  %s: %v\n", groupName, privileges)
+	log.Printf("[DEBUG] Collected schema '%s' privileges for group %s: %v", schemaName, groupName, privileges)
 
-	return privileges, nil
+	d.Set(grantPrivilegesAttr, privileges)
+
+	return nil
+}
+
+func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
+	query := `
+  SELECT
+    relname,
+    decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as select,
+    decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as update,
+    decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as insert,
+    decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as delete,
+    decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as references
+  FROM pg_group gr, pg_class cl
+  JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
+  WHERE
+    cl.relkind = $1
+    AND gr.groname=$2
+    AND nsp.nspname=$3
+`
+
+	groupName := d.Get(grantGroupAttr).(string)
+	schemaName := d.Get(grantSchemaAttr).(string)
+	objects := d.Get(grantObjectsAttr).(*schema.Set)
+
+	rows, err := db.Query(query, grantObjectTypesCodes["table"], groupName, schemaName)
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var objName string
+		var tableSelect, tableUpdate, tableInsert, tableDelete, tableReferences bool
+
+		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableReferences); err != nil {
+			return err
+		}
+
+		if objects.Len() > 0 && !objects.Contains(objName) {
+			continue
+		}
+
+		privilegesSet := schema.NewSet(schema.HashString, nil)
+		if tableSelect {
+			privilegesSet.Add("select")
+		}
+		if tableUpdate {
+			privilegesSet.Add("update")
+		}
+		if tableInsert {
+			privilegesSet.Add("insert")
+		}
+		if tableDelete {
+			privilegesSet.Add("delete")
+		}
+		if tableReferences {
+			privilegesSet.Add("references")
+		}
+
+		if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {
+			d.Set(grantPrivilegesAttr, privilegesSet)
+			break
+		}
+	}
+
+	return nil
 }
 
 func revokeGroupGrants(tx *sql.Tx, databaseName string, d *schema.ResourceData) error {

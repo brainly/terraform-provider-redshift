@@ -172,7 +172,7 @@ func validatePrivileges(privileges []string, objectType string) bool {
 			}
 		case "DATABASE":
 			switch strings.ToUpper(p) {
-			case "CREATE", "TEMPORARY", "TEMP":
+			case "CREATE", "TEMPORARY":
 				continue
 			default:
 				return false

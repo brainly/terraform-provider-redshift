@@ -170,8 +170,16 @@ func validatePrivileges(privileges []string, objectType string) bool {
 			default:
 				return false
 			}
+		case "DATABASE":
+			switch strings.ToUpper(p) {
+			case "CREATE", "TEMPORARY":
+				continue
+			default:
+				return false
+			}
+		default:
+			return false
 		}
-
 	}
 
 	return true
@@ -181,4 +189,17 @@ func appendIfTrue(condition bool, item string, list *[]string) {
 	if condition {
 		*list = append(*list, item)
 	}
+}
+
+func setToPgIdentList(identifiers *schema.Set, prefix string) string {
+	quoted := make([]string, identifiers.Len())
+	for i, identifier := range identifiers.List() {
+		if prefix == "" {
+			quoted[i] = pq.QuoteIdentifier(identifier.(string))
+		} else {
+			quoted[i] = fmt.Sprintf("%s.%s", pq.QuoteIdentifier(prefix), pq.QuoteIdentifier(identifier.(string)))
+		}
+	}
+
+	return strings.Join(quoted, ",")
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.4.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.0) (2021-09-06)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.3.0...v0.4.0)
+
+**Implemented enhancements:**
+
+- Implement `redshift_default_privileges` resource [\#21](https://github.com/brainly/terraform-provider-redshift/pull/21) ([winglot](https://github.com/winglot))
+- Manage datashare consumer permissions to use datashares [\#20](https://github.com/brainly/terraform-provider-redshift/pull/20) ([sworisbreathing](https://github.com/sworisbreathing))
+- Support connecting through a socks proxy [\#19](https://github.com/brainly/terraform-provider-redshift/pull/19) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add simple `redshift_datashare` resource [\#18](https://github.com/brainly/terraform-provider-redshift/pull/18) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift_namespace` data source [\#16](https://github.com/brainly/terraform-provider-redshift/pull/16) ([sworisbreathing](https://github.com/sworisbreathing))
+
+**Fixed bugs:**
+
+- Default privileges approach is incorrect [\#15](https://github.com/brainly/terraform-provider-redshift/issues/15)
+
+**Merged pull requests:**
+
+- Add `redshift_grant` resource [\#22](https://github.com/brainly/terraform-provider-redshift/pull/22) ([winglot](https://github.com/winglot))
+
 ## [v0.3.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.3.0) (2021-08-06)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.2.0...v0.3.0)
@@ -7,7 +27,7 @@
 **Implemented enhancements:**
 
 - Add external schema support [\#14](https://github.com/brainly/terraform-provider-redshift/pull/14) ([sworisbreathing](https://github.com/sworisbreathing))
-- Add `redshift\_database` resource and data source. [\#12](https://github.com/brainly/terraform-provider-redshift/pull/12) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift_database` resource and data source. [\#12](https://github.com/brainly/terraform-provider-redshift/pull/12) ([sworisbreathing](https://github.com/sworisbreathing))
 
 ## [v0.2.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.2.0) (2021-07-28)
 
@@ -15,10 +35,10 @@
 
 **Implemented enhancements:**
 
-- Add `redshift\_schema` data source [\#10](https://github.com/brainly/terraform-provider-redshift/pull/10) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift_schema` data source [\#10](https://github.com/brainly/terraform-provider-redshift/pull/10) ([sworisbreathing](https://github.com/sworisbreathing))
 - Use md5 hashing for redshift\_user passwords [\#7](https://github.com/brainly/terraform-provider-redshift/pull/7) ([sworisbreathing](https://github.com/sworisbreathing))
-- Add `redshift\_user` data source [\#6](https://github.com/brainly/terraform-provider-redshift/pull/6) ([sworisbreathing](https://github.com/sworisbreathing))
-- Add `redshift\_group` data source [\#5](https://github.com/brainly/terraform-provider-redshift/pull/5) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift_user` data source [\#6](https://github.com/brainly/terraform-provider-redshift/pull/6) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift_group` data source [\#5](https://github.com/brainly/terraform-provider-redshift/pull/5) ([sworisbreathing](https://github.com/sworisbreathing))
 - Support provider authentication using GetClusterCredentials [\#3](https://github.com/brainly/terraform-provider-redshift/pull/3) ([sworisbreathing](https://github.com/sworisbreathing))
 
 **Fixed bugs:**

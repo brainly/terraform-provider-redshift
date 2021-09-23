@@ -137,3 +137,54 @@ resource "redshift_grant" "grant" {
 }
 `, groupName)
 }
+
+func TestAccRedshiftGrant_Regression_GH_Issue_24(t *testing.T) {
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_user_grant"), "-", "_")
+	schemaName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_schema_grant"), "-", "_")
+	dbName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_db_grant"), "-", "_")
+	config := fmt.Sprintf(`
+resource "redshift_user" "user" {
+  name = %[1]q
+}
+
+# Create a group named the same as user
+resource "redshift_group" "group" {
+  name = %[1]q
+}
+
+# Create a schema and set user as owner
+resource "redshift_schema" "schema" {
+  name = %[2]q
+
+  owner = redshift_user.user.name
+}
+
+# The schema owner user will have all (create, usage) privileges on the schema
+# Set only 'create' privilege to a group with the same name as user. In previous versions this would trigger a permanent diff in plan.
+resource "redshift_grant" "schema" {
+  group = redshift_group.group.name
+  schema = redshift_schema.schema.name
+
+  object_type = "schema"
+  privileges = ["create"]
+}
+`, userName, schemaName, dbName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: func(s *terraform.State) error { return nil },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check:  resource.ComposeTestCheckFunc(),
+			},
+			// The 'ExpectNonEmptyPlan: false' option will fail the test if second run on the same config  will show any changes
+			{
+				Config:             config,
+				Check:              resource.ComposeTestCheckFunc(),
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}

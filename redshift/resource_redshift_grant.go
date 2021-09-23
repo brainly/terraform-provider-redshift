@@ -184,8 +184,8 @@ func readGroupDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	query := `
   SELECT
-    decode(charindex('C',split_part(split_part(array_to_string(db.datacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(array_to_string(db.datacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as temporary
+    decode(charindex('C',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as create,
+    decode(charindex('T',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as temporary
   FROM pg_database db, pg_group gr
   WHERE
     db.datname=$1 
@@ -215,8 +215,8 @@ func readGroupSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	query := `
   SELECT
-    decode(charindex('C',split_part(split_part(array_to_string(ns.nspacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as create,
-    decode(charindex('U',split_part(split_part(array_to_string(ns.nspacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as usage
+    decode(charindex('C',split_part(split_part(array_to_string(ns.nspacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as create,
+    decode(charindex('U',split_part(split_part(array_to_string(ns.nspacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as usage
   FROM pg_namespace ns, pg_group gr
   WHERE
     ns.nspname=$1 
@@ -242,11 +242,11 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	query := `
   SELECT
     relname,
-    decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as select,
-    decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as update,
-    decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as insert,
-    decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as delete,
-    decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),gr.groname,2 ) ,'/',1)), 0,0,1) as references
+    decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as select,
+    decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as update,
+    decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as insert,
+    decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as delete,
+    decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as references
   FROM pg_group gr, pg_class cl
   JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
   WHERE

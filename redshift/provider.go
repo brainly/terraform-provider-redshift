@@ -163,21 +163,16 @@ func resolveCredentials(d *schema.ResourceData) (string, string, error) {
 	if (!ok) || username == nil {
 		return "", "", fmt.Errorf("Username is required")
 	}
-	password, passwordIsSet := d.GetOk("password")
-	_, clusterIdentifierIsSet := d.GetOk("temporary_credentials.0.cluster_identifier")
-	if !passwordIsSet && !clusterIdentifierIsSet {
-		return "", "", fmt.Errorf("password or temporary_credentials must be configured")
+	if _, useTemporaryCredentials := d.GetOk("temporary_credentials.0"); useTemporaryCredentials {
+		log.Println("[DEBUG] using temporary credentials authentication")
+		dbUser, dbPassword, err := temporaryCredentials(username.(string), d)
+		log.Printf("[DEBUG] got temporary credentials with username %s\n", dbUser)
+		return dbUser, dbPassword, err
 	}
-	if passwordIsSet {
-		if password.(string) != "" {
-			log.Println("[DEBUG] using password authentication")
-			return username.(string), password.(string), nil
-		}
-	}
-	log.Println("[DEBUG] using temporary credentials authentication")
-	dbUser, dbPassword, err := temporaryCredentials(username.(string), d)
-	log.Printf("[DEBUG] got temporary credentials with username %s\n", dbUser)
-	return dbUser, dbPassword, err
+
+	password, _ := d.GetOk("password")
+	log.Println("[DEBUG] using password authentication")
+	return username.(string), password.(string), nil
 }
 
 // temporaryCredentials gets temporary credentials using GetClusterCredentials

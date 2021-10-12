@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.4.2](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.2) (2021-10-12)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.1...v0.4.2)
+
+**Fixed bugs:**
+
+- Fixed dynamic password resolution for provider [\#29](https://github.com/brainly/terraform-provider-redshift/pull/29) ([marekpp](https://github.com/marekpp))
+
 ## [v0.4.1](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.1) (2021-09-23)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.0...v0.4.1)

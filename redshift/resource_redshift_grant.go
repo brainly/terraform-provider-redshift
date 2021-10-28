@@ -25,8 +25,8 @@ var grantAllowedObjectTypes = []string{
 	"database",
 }
 
-var grantObjectTypesCodes = map[string]string{
-	"table": "r",
+var grantObjectTypesCodes = map[string][]string{
+	"table": []string{"r", "m", "v"},
 }
 
 func redshiftGrant() *schema.Resource {
@@ -242,15 +242,15 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	query := `
   SELECT
     relname,
-    decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as select,
-    decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as update,
-    decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as insert,
-    decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as delete,
-    decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as references
+    decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as select,
+    decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as update,
+    decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as insert,
+    decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as delete,
+    decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as references
   FROM pg_group gr, pg_class cl
   JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
   WHERE
-    cl.relkind = $1
+    cl.relkind = ANY($1)
     AND gr.groname=$2
     AND nsp.nspname=$3
 `
@@ -259,7 +259,7 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	schemaName := d.Get(grantSchemaAttr).(string)
 	objects := d.Get(grantObjectsAttr).(*schema.Set)
 
-	rows, err := db.Query(query, grantObjectTypesCodes["table"], groupName, schemaName)
+	rows, err := db.Query(query, pq.Array(grantObjectTypesCodes["table"]), groupName, schemaName)
 	if err != nil {
 		return err
 	}

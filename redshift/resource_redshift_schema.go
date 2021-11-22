@@ -172,7 +172,12 @@ A database contains one or more named schemas. Each schema in a database contain
 										Optional: true,
 										Default:  false,
 										DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-											return true // this attribute only applies at create time so we should never flag it as a change
+											// If the old value is empty, and the new value is not, it means we are creating the resource.
+											// This must trigger diff in order to save proper value in state.
+											if old == "" && new != "" {
+												return false
+											}
+											return true
 										},
 										Description: `When enabled, creates an external database with the name specified by the database argument,
 	if the specified external database doesn't exist. If the specified external database exists, the command makes no changes.

@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.4.3](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.3) (2021-11-22)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.2...v0.4.3)
+
+**Fixed bugs:**
+
+- redshift\_grant unable to detect drift on view grants [\#30](https://github.com/brainly/terraform-provider-redshift/issues/30)
+- BUG `create\_external\_database\_if\_not\_exists` looks like not working. [\#27](https://github.com/brainly/terraform-provider-redshift/issues/27)
+- `redshift\_grants` resource occasionally shows incorrect diffs or permanent diffs [\#24](https://github.com/brainly/terraform-provider-redshift/issues/24)
+
+**Merged pull requests:**
+
+- Rewrite DiffSuppressFunc for create\_external\_database\_if\_not\_exists. [\#32](https://github.com/brainly/terraform-provider-redshift/pull/32) ([winglot](https://github.com/winglot))
+- Extend grant detection also to views and materialized views. [\#31](https://github.com/brainly/terraform-provider-redshift/pull/31) ([matokovacik](https://github.com/matokovacik))
+
 ## [v0.4.2](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.2) (2021-10-12)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.1...v0.4.2)

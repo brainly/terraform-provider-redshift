@@ -473,6 +473,72 @@ resource "redshift_schema" "redshift" {
 	})
 }
 
+func TestAccRedshiftSchema_CreateExternalDatabaseIfNotExists(t *testing.T) {
+	roleArn := getEnvOrSkip("REDSHIFT_EXTERNAL_SCHEMA_IAM_ROLE_ARN", t)
+	schemaName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_external_schema_redshift"), "-", "_")
+	dbName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_external_schema_redshift"), "-", "_")
+	configCreate := fmt.Sprintf(`
+resource "redshift_schema" "redshift" {
+	name = %[1]q
+	external_schema {
+		database_name = %[2]q
+		data_catalog_source {
+		  iam_role_arns = [%[3]q]
+		  create_external_database_if_not_exists = true
+		}
+	}
+}
+`, schemaName, dbName, roleArn)
+
+	configUpdate := fmt.Sprintf(`
+resource "redshift_schema" "redshift" {
+	name = %[1]q
+	external_schema {
+		database_name = %[2]q
+		data_catalog_source {
+		  iam_role_arns = [%[3]q]
+		}
+	}
+}
+`, schemaName, dbName, roleArn)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: configCreate,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedshiftSchemaExists(schemaName),
+					resource.TestCheckResourceAttr("redshift_schema.redshift", "name", schemaName),
+				),
+			},
+			// Run the same config with 'ExpectNonEmptyPlan: false' to check for any constant-drift params
+			{
+				Config:             configCreate,
+				Check:              resource.ComposeTestCheckFunc(),
+				ExpectNonEmptyPlan: false,
+			},
+			// When "create_external_database_if_not_exists" is removed, DiffSuppressFunc will kick-in and there should be no diff in plan
+			{
+				Config: configUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedshiftSchemaExists(schemaName),
+					resource.TestCheckResourceAttr("redshift_schema.redshift", "name", schemaName),
+				),
+				ExpectNonEmptyPlan: false,
+			},
+			// Run the same config with 'ExpectNonEmptyPlan: false' to check for any constant-drift params
+			{
+				Config:             configCreate,
+				Check:              resource.ComposeTestCheckFunc(),
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
 func testAccCheckRedshiftSchemaDestroy(s *terraform.State) error {
 	client := testAccProvider.Meta().(*Client)
 

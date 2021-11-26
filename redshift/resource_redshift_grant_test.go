@@ -113,8 +113,13 @@ func TestAccRedshiftGrant_BasicTable(t *testing.T) {
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "table"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "objects.#", "1"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "objects.*", "pg_user_info"),
-					resource.TestCheckResourceAttr("redshift_grant.grant", "privileges.#", "1"),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "privileges.#", "6"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "select"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "update"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "insert"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "delete"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "drop"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "references"),
 				),
 			},
 		},
@@ -133,7 +138,7 @@ resource "redshift_grant" "grant" {
 
   object_type = "table"
   objects = ["pg_user_info"]
-  privileges = ["select"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references"]
 }
 `, groupName)
 }

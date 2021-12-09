@@ -246,6 +246,7 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
     decode(charindex('w',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as update,
     decode(charindex('a',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as insert,
     decode(charindex('d',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as delete,
+    decode(charindex('D',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as drop,
     decode(charindex('x',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as references
   FROM pg_group gr, pg_class cl
   JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
@@ -266,9 +267,9 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	for rows.Next() {
 		var objName string
-		var tableSelect, tableUpdate, tableInsert, tableDelete, tableReferences bool
+		var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences bool
 
-		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableReferences); err != nil {
+		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableDrop, &tableReferences); err != nil {
 			return err
 		}
 
@@ -288,6 +289,9 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		}
 		if tableDelete {
 			privilegesSet.Add("delete")
+		}
+		if tableDrop {
+			privilegesSet.Add("drop")
 		}
 		if tableReferences {
 			privilegesSet.Add("references")

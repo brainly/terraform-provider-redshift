@@ -194,13 +194,14 @@ func resourceRedshiftDefaultPrivilegesReadImpl(db *DBConnection, d *schema.Resou
 }
 
 func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, groupID, schemaID, ownerID int) error {
-	var tableSelect, tableUpdate, tableInsert, tableDelete, tableReferences bool
+	var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences bool
 	tableDefaultPrivilegeQuery := `
 	      SELECT 
 		decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as select,
 		decode(charindex('w',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as update,
 		decode(charindex('a',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as insert,
 		decode(charindex('d',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as delete,
+		decode(charindex('D',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as drop,
 		decode(charindex('x',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as references
 	      FROM pg_group gr, pg_default_acl acl
 	      WHERE 
@@ -215,6 +216,7 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, groupID
 		&tableUpdate,
 		&tableInsert,
 		&tableDelete,
+		&tableDrop,
 		&tableReferences); err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("failed to collect group privileges: %w", err)
 	}
@@ -224,6 +226,7 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, groupID
 	appendIfTrue(tableUpdate, "update", &privileges)
 	appendIfTrue(tableInsert, "insert", &privileges)
 	appendIfTrue(tableDelete, "delete", &privileges)
+	appendIfTrue(tableDelete, "drop", &privileges)
 	appendIfTrue(tableReferences, "references", &privileges)
 
 	log.Printf("[DEBUG] Collected privileges for group ID %d: %v\n", groupID, privileges)

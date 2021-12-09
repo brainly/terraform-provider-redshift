@@ -51,6 +51,7 @@ var reservedWords = []string{
 	"disable",
 	"distinct",
 	"do",
+	"drop",
 	"else",
 	"emptyasnull",
 	"enable",

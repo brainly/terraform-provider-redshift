@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.0) (2021-12-10)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.3...v0.5.0)
+
+**Implemented enhancements:**
+
+- feat: Add drop privilege for table objects. [\#33](https://github.com/brainly/terraform-provider-redshift/pull/33) ([taylorrm1](https://github.com/taylorrm1))
+
 ## [v0.4.3](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.3) (2021-11-22)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.2...v0.4.3)

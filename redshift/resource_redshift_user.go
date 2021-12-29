@@ -390,7 +390,7 @@ func resourceRedshiftUserDelete(db *DBConnection, d *schema.ResourceData) error 
 			return err
 		}
 
-		if _, err := tx.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE ALL ON TABLES FROM %s CASCADE", pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(userName))); err != nil {
+		if _, err := tx.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE ALL ON TABLES FROM %s", pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(userName))); err != nil {
 			return err
 		}
 

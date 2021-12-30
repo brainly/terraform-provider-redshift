@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.5.1](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.1) (2021-12-30)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.5.0...v0.5.1)
+
+**Implemented enhancements:**
+
+- redshift does not allow create superuser without password [\#37](https://github.com/brainly/terraform-provider-redshift/issues/37)
+
+**Merged pull requests:**
+
+- Deprecate redshift\_privilege resource [\#40](https://github.com/brainly/terraform-provider-redshift/pull/40) ([winglot](https://github.com/winglot))
+- Require password for superuser at plan phase [\#39](https://github.com/brainly/terraform-provider-redshift/pull/39) ([winglot](https://github.com/winglot))
+
 ## [v0.5.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.0) (2021-12-10)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.4.3...v0.5.0)

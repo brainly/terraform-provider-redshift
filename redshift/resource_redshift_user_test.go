@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
@@ -178,6 +180,28 @@ resource "redshift_user" "update_superuser" {
 					resource.TestCheckResourceAttr("redshift_user.update_superuser", "superuser", "false"),
 					//testAccCheckUserCanLogin(t, "update_superuser", "toto"),
 				),
+			},
+		},
+	})
+}
+
+func TestAccRedshiftUser_SuperuserRequiresPassword(t *testing.T) {
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_superuser"), "-", "_")
+	config := fmt.Sprintf(`
+resource "redshift_user" "superuser" {
+  name = %[1]q
+  superuser = true
+}
+`, userName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("\"superuser\": all of `password,superuser` must be specified"),
 			},
 		},
 	})

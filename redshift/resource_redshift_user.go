@@ -109,6 +109,7 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 			},
 			userSuperuserAttr: {
 				ConflictsWith: []string{userSyslogAccessAttr},
+				RequiredWith:  []string{userPasswordAttr},
 				Type:          schema.TypeBool,
 				Optional:      true,
 				Default:       false,

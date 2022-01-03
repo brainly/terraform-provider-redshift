@@ -36,6 +36,8 @@ func redshiftPrivilege() *schema.Resource {
 		This resource is deprecated, might have bugs and may not be working as expected. Please use redshift_grant and redshift_default_privilege instead.
 `,
 		Description: `
+!> **WARNING:** This resource is deprecated, might have bugs and may not be working as expected. Please use redshift_grant and redshift_default_privilege instead.
+
 When you create a database object, you are its owner. By default, only a superuser or the owner of an object can query, modify, or grant privileges on the object. For users to use an object, you must grant the necessary privileges to the user or the group that contains the user. Database superusers have the same privileges as database owners.
 `,
 		Read: RedshiftResourceFunc(resourceRedshiftPrivilegeRead),

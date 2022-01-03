@@ -34,4 +34,12 @@ resource "redshift_group" "staff" {
 - **id** (String) The ID of this resource.
 - **users** (Set of String) List of the user names to add to the group
 
+## Import
 
+Import is supported using the following syntax:
+
+```shell
+# Import group with grosysid: SELECT grosysid FROM pg_group WHERE groname = 'mygroup'
+
+terraform import redshift_group.mygroup 234
+```

@@ -265,6 +265,7 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		return err
 	}
 
+	presentObjectSet := schema.NewSet(schema.HashString, []interface{}{})
 	for rows.Next() {
 		var objName string
 		var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences bool
@@ -276,6 +277,7 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		if objects.Len() > 0 && !objects.Contains(objName) {
 			continue
 		}
+		presentObjectSet.Add(objName)
 
 		privilegesSet := schema.NewSet(schema.HashString, nil)
 		if tableSelect {
@@ -301,6 +303,11 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 			d.Set(grantPrivilegesAttr, privilegesSet)
 			break
 		}
+	}
+
+	objectsDiff := objects.Difference(presentObjectSet)
+	if objectsDiff.Len() > 0 {
+		return fmt.Errorf("Tables do not exists: %#v", objectsDiff.List())
 	}
 
 	return nil

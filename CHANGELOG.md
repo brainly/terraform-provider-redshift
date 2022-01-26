@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.3](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.3) (2022-01-26)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.5.2...v0.5.3)
+
+**Fixed bugs:**
+
+- Fix typo in code - wrong variable referenced [\#48](https://github.com/brainly/terraform-provider-redshift/pull/48) ([matokovacik](https://github.com/matokovacik))
+
 ## [v0.5.2](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.2) (2022-01-26)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.5.1...v0.5.2)
@@ -72,7 +80,6 @@
 - Manage datashare consumer permissions to use datashares [\#20](https://github.com/brainly/terraform-provider-redshift/pull/20) ([sworisbreathing](https://github.com/sworisbreathing))
 - Support connecting through a socks proxy [\#19](https://github.com/brainly/terraform-provider-redshift/pull/19) ([sworisbreathing](https://github.com/sworisbreathing))
 - Add simple `redshift\_datashare` resource [\#18](https://github.com/brainly/terraform-provider-redshift/pull/18) ([sworisbreathing](https://github.com/sworisbreathing))
-- Add `redshift\_namespace` data source [\#16](https://github.com/brainly/terraform-provider-redshift/pull/16) ([sworisbreathing](https://github.com/sworisbreathing))
 
 **Fixed bugs:**
 
@@ -97,6 +104,7 @@
 
 **Implemented enhancements:**
 
+- Add `redshift\_namespace` data source [\#16](https://github.com/brainly/terraform-provider-redshift/pull/16) ([sworisbreathing](https://github.com/sworisbreathing))
 - Add `redshift\_schema` data source [\#10](https://github.com/brainly/terraform-provider-redshift/pull/10) ([sworisbreathing](https://github.com/sworisbreathing))
 - Use md5 hashing for redshift\_user passwords [\#7](https://github.com/brainly/terraform-provider-redshift/pull/7) ([sworisbreathing](https://github.com/sworisbreathing))
 - Add `redshift\_user` data source [\#6](https://github.com/brainly/terraform-provider-redshift/pull/6) ([sworisbreathing](https://github.com/sworisbreathing))

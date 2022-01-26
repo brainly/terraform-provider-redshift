@@ -226,7 +226,7 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, groupID
 	appendIfTrue(tableUpdate, "update", &privileges)
 	appendIfTrue(tableInsert, "insert", &privileges)
 	appendIfTrue(tableDelete, "delete", &privileges)
-	appendIfTrue(tableDelete, "drop", &privileges)
+	appendIfTrue(tableDrop, "drop", &privileges)
 	appendIfTrue(tableReferences, "references", &privileges)
 
 	log.Printf("[DEBUG] Collected privileges for group ID %d: %v\n", groupID, privileges)

@@ -158,7 +158,7 @@ func resourceRedshiftGroupDelete(db *DBConnection, d *schema.ResourceData) error
 		if _, err := tx.Exec(fmt.Sprintf("REVOKE ALL ON ALL TABLES IN SCHEMA %s FROM GROUP %s", pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(groupName))); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE ALL ON TABLES FROM GROUP %s CASCADE", pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(groupName))); err != nil {
+		if _, err := tx.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE ALL ON TABLES FROM GROUP %s", pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(groupName))); err != nil {
 			return err
 		}
 	}

@@ -4,10 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/aws-sdk-go-v2/service/sts/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -111,6 +116,7 @@ func Provider() *schema.Provider {
 							Description:  "The number of seconds until the returned temporary password expires.",
 							ValidateFunc: validation.IntBetween(900, 3600),
 						},
+						"assume_role": assumeRoleSchema(),
 					},
 				},
 			},
@@ -222,9 +228,96 @@ func temporaryCredentials(username string, d *schema.ResourceData) (string, stri
 }
 
 func redshiftSdkClient(d *schema.ResourceData) (*redshift.Client, error) {
-	config, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
-	return redshift.NewFromConfig(config), nil
+	if _, ok := d.GetOk("temporary_credentials.0.assume_role"); ok {
+		var parsedRoleArn string
+		if roleArn, ok := d.GetOk("temporary_credentials.0.assume_role.0.role_arn"); ok {
+			parsedRoleArn = roleArn.(string)
+		}
+		opts := func(options *stscreds.AssumeRoleOptions) {
+			if durationSeconds, ok := d.GetOk("temporary_credentials.0.assume_role.0.duration_seconds"); ok {
+				if duration := durationSeconds.(int); duration > 0 {
+					options.Duration = time.Second * time.Duration(duration)
+				}
+			}
+			if externalID, ok := d.GetOk("temporary_credentials.0.assume_role.0.external_id"); ok {
+				options.ExternalID = aws.String(externalID.(string))
+			}
+			if policy, ok := d.GetOk("temporary_credentials.0.assume_role.0.policy"); ok {
+				options.Policy = aws.String(policy.(string))
+			}
+			if policy_arns, ok := d.GetOk("temporary_credentials.0.assume_role.0.policy_arns"); ok {
+				arns := policy_arns.([]string)
+				options.PolicyARNs = make([]types.PolicyDescriptorType, len(arns))
+				for _, arn := range arns {
+					options.PolicyARNs = append(options.PolicyARNs, types.PolicyDescriptorType{Arn: aws.String(arn)})
+				}
+			}
+			if sessionName, ok := d.GetOk("temporary_credentials.0.assume_role.0.session_name"); ok {
+				options.RoleSessionName = sessionName.(string)
+			}
+		}
+		stsClient := sts.NewFromConfig(cfg)
+		cfg.Credentials = stscreds.NewAssumeRoleProvider(stsClient, parsedRoleArn, opts)
+	}
+	return redshift.NewFromConfig(cfg), nil
+}
+
+func assumeRoleSchema() *schema.Schema {
+	return &schema.Schema{
+		Type:        schema.TypeList,
+		Description: "Optional assume role data used to obtain temporary credentials",
+		Optional:    true,
+		MaxItems:    1,
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"duration_seconds": {
+					Type:         schema.TypeInt,
+					Optional:     true,
+					Description:  "The duration, in seconds, of the role session.",
+					ValidateFunc: validation.IntBetween(900, 43200),
+				},
+				"external_id": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: "A unique identifier that might be required when you assume a role in another account.",
+					ValidateFunc: validation.All(
+						validation.StringLenBetween(2, 1224),
+						validation.StringMatch(regexp.MustCompile(`[\w+=,.@:\/\-]*`), ""),
+					),
+				},
+				"policy": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					Description:  "IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.",
+					ValidateFunc: validation.StringIsJSON,
+				},
+				"policy_arns": {
+					Type:        schema.TypeSet,
+					Optional:    true,
+					Description: "Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.",
+					Elem: &schema.Schema{
+						Type: schema.TypeString,
+					},
+				},
+				"role_arn": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: "Amazon Resource Name of an IAM Role to assume prior to making API calls.",
+				},
+				"session_name": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: "An identifier for the assumed role session.",
+					ValidateFunc: validation.All(
+						validation.StringLenBetween(2, 64),
+						validation.StringMatch(regexp.MustCompile(`[\w+=,.@\-]*`), ""),
+					),
+				},
+			},
+		},
+	}
 }

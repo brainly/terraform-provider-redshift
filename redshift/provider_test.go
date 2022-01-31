@@ -46,7 +46,7 @@ func testAccPreCheck(t *testing.T) {
 }
 
 func initTemporaryCredentialsProvider(t *testing.T, provider *schema.Provider) {
-	clusterIdentifier := getEnvOrSkip("REDSHIFT_CLUSTER_IDENTIFIER", t)
+	clusterIdentifier := getEnvOrSkip("REDSHIFT_TEMPORARY_CREDENTIALS_CLUSTER_IDENTIFIER", t)
 
 	sdkClient, err := stsClient(t)
 	if err != nil {
@@ -68,6 +68,13 @@ func initTemporaryCredentialsProvider(t *testing.T, provider *schema.Provider) {
 			},
 		},
 	}
+	if arn, ok := os.LookupEnv("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_ARN"); ok {
+		config["temporary_credentials"].([]interface{})[0].(map[string]interface{})["assume_role"] = []interface{}{
+			map[string]interface{}{
+				"arn": arn,
+			},
+		}
+	}
 	diagnostics := provider.Configure(context.Background(), terraform.NewResourceConfigRaw(config))
 	if diagnostics != nil {
 		if diagnostics.HasError() {
@@ -86,14 +93,10 @@ func stsClient(t *testing.T) (*sts.Client, error) {
 
 func TestAccRedshiftTemporaryCredentials(t *testing.T) {
 	provider := Provider()
-	redshift_password := os.Getenv("REDSHIFT_PASSWORD")
-	defer os.Setenv("REDSHIFT_PASSWORD", redshift_password)
-	os.Unsetenv("REDSHIFT_PASSWORD")
-	rawUsername := os.Getenv("REDSHIFT_USER")
-	defer os.Setenv("REDSHIFT_USER", rawUsername)
-	username := strings.ToLower(permanentUsername(rawUsername))
-	os.Setenv("REDSHIFT_USER", username)
-	initTemporaryCredentialsProvider(t, provider)
+	assume_role_arn := os.Getenv("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_ARN")
+	defer os.Setenv("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_ARN", assume_role_arn)
+	os.Unsetenv("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_ARN")
+	prepareRedshiftTemporaryCredentialsTestCases(t, provider)
 	client, ok := provider.Meta().(*Client)
 	if !ok {
 		t.Fatal("Unable to initialize client")
@@ -103,4 +106,30 @@ func TestAccRedshiftTemporaryCredentials(t *testing.T) {
 		t.Fatalf("Unable to connect to database: %s", err)
 	}
 	defer db.Close()
+}
+
+func TestAccRedshiftTemporaryCredentialsAssumeRole(t *testing.T) {
+	_ = getEnvOrSkip("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_ARN", t)
+	provider := Provider()
+	prepareRedshiftTemporaryCredentialsTestCases(t, provider)
+	client, ok := provider.Meta().(*Client)
+	if !ok {
+		t.Fatal("Unable to initialize client")
+	}
+	db, err := client.Connect()
+	if err != nil {
+		t.Fatalf("Unable to connect to database: %s", err)
+	}
+	defer db.Close()
+}
+
+func prepareRedshiftTemporaryCredentialsTestCases(t *testing.T, provider *schema.Provider) {
+	redshift_password := os.Getenv("REDSHIFT_PASSWORD")
+	defer os.Setenv("REDSHIFT_PASSWORD", redshift_password)
+	os.Unsetenv("REDSHIFT_PASSWORD")
+	rawUsername := os.Getenv("REDSHIFT_USER")
+	defer os.Setenv("REDSHIFT_USER", rawUsername)
+	username := strings.ToLower(permanentUsername(rawUsername))
+	os.Setenv("REDSHIFT_USER", username)
+	initTemporaryCredentialsProvider(t, provider)
 }

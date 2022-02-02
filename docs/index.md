@@ -66,20 +66,26 @@ provider "redshift" {
 <a id="nestedblock--temporary_credentials"></a>
 ### Nested Schema for `temporary_credentials`
 
+Required:
+
+- **cluster_identifier** (String) The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.
+
 Optional:
 
 - **assume_role** (Block List, Max: 1) Optional assume role data used to obtain temporary credentials (see [below for nested schema](#nestedblock--temporary_credentials--assume_role))
 - **auto_create_user** (Boolean) Create a database user with the name specified for the user if one does not exist.
-- **cluster_identifier** (String) The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.
 - **db_groups** (Set of String) A list of the names of existing database groups that the user will join for the current session, in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
 - **duration_seconds** (Number) The number of seconds until the returned temporary password expires.
 
 <a id="nestedblock--temporary_credentials--assume_role"></a>
 ### Nested Schema for `temporary_credentials.assume_role`
 
-Optional:
+Required:
 
 - **arn** (String) Amazon Resource Name of an IAM Role to assume prior to making API calls.
+
+Optional:
+
 - **external_id** (String) A unique identifier that might be required when you assume a role in another account.
 - **session_name** (String) An identifier for the assumed role session.
 

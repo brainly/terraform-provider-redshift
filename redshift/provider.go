@@ -90,7 +90,6 @@ func Provider() *schema.Provider {
 						"cluster_identifier": {
 							Type:         schema.TypeString,
 							Required:     true,
-							DefaultFunc:  schema.EnvDefaultFunc("REDSHIFT_TEMPORARY_CREDENTIALS_CLUSTER_IDENTIFIER", nil),
 							Description:  "The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.",
 							ValidateFunc: validation.StringLenBetween(1, 2147483647),
 						},
@@ -264,15 +263,13 @@ func assumeRoleSchema() *schema.Schema {
 			Schema: map[string]*schema.Schema{
 				"arn": {
 					Type:        schema.TypeString,
-					Optional:    true,
-					DefaultFunc: schema.EnvDefaultFunc("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_ARN", nil),
+					Required:    true,
 					Description: "Amazon Resource Name of an IAM Role to assume prior to making API calls.",
 				},
 				"external_id": {
 					Type:        schema.TypeString,
 					Optional:    true,
 					Description: "A unique identifier that might be required when you assume a role in another account.",
-					DefaultFunc: schema.EnvDefaultFunc("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_EXTERNAL_ID", nil),
 					ValidateFunc: validation.All(
 						validation.StringLenBetween(2, 1224),
 						validation.StringMatch(regexp.MustCompile(`[\w+=,.@:\/\-]*`), ""),
@@ -282,7 +279,6 @@ func assumeRoleSchema() *schema.Schema {
 					Type:        schema.TypeString,
 					Optional:    true,
 					Description: "An identifier for the assumed role session.",
-					DefaultFunc: schema.EnvDefaultFunc("REDSHIFT_TEMPORARY_CREDENTIALS_ASSUME_ROLE_SESSION_NAME", nil),
 					ValidateFunc: validation.All(
 						validation.StringLenBetween(2, 64),
 						validation.StringMatch(regexp.MustCompile(`[\w+=,.@\-]*`), ""),

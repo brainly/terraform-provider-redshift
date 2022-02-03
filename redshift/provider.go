@@ -4,16 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 const (
-	defaultProviderMaxOpenConnections = 20
+	defaultProviderMaxOpenConnections                      = 20
+	defaultTemporaryCredentialsAssumeRoleDurationInSeconds = 900
 )
 
 func Provider() *schema.Provider {
@@ -111,6 +116,7 @@ func Provider() *schema.Provider {
 							Description:  "The number of seconds until the returned temporary password expires.",
 							ValidateFunc: validation.IntBetween(900, 3600),
 						},
+						"assume_role": assumeRoleSchema(),
 					},
 				},
 			},
@@ -222,9 +228,63 @@ func temporaryCredentials(username string, d *schema.ResourceData) (string, stri
 }
 
 func redshiftSdkClient(d *schema.ResourceData) (*redshift.Client, error) {
-	config, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return nil, err
 	}
-	return redshift.NewFromConfig(config), nil
+	if _, ok := d.GetOk("temporary_credentials.0.assume_role"); ok {
+		var parsedRoleArn string
+		if roleArn, ok := d.GetOk("temporary_credentials.0.assume_role.0.arn"); ok {
+			parsedRoleArn = roleArn.(string)
+		}
+		log.Printf("[DEBUG] Assuming role provided in configuration: [%s]", parsedRoleArn)
+		opts := func(options *stscreds.AssumeRoleOptions) {
+			options.Duration = time.Duration(defaultTemporaryCredentialsAssumeRoleDurationInSeconds) * time.Second
+			if externalID, ok := d.GetOk("temporary_credentials.0.assume_role.0.external_id"); ok {
+				options.ExternalID = aws.String(externalID.(string))
+			}
+			if sessionName, ok := d.GetOk("temporary_credentials.0.assume_role.0.session_name"); ok {
+				options.RoleSessionName = sessionName.(string)
+			}
+		}
+		stsClient := sts.NewFromConfig(cfg)
+		cfg.Credentials = stscreds.NewAssumeRoleProvider(stsClient, parsedRoleArn, opts)
+	}
+	return redshift.NewFromConfig(cfg), nil
+}
+
+func assumeRoleSchema() *schema.Schema {
+	return &schema.Schema{
+		Type:        schema.TypeList,
+		Description: "Optional assume role data used to obtain temporary credentials",
+		Optional:    true,
+		MaxItems:    1,
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"arn": {
+					Type:        schema.TypeString,
+					Required:    true,
+					Description: "Amazon Resource Name of an IAM Role to assume prior to making API calls.",
+				},
+				"external_id": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: "A unique identifier that might be required when you assume a role in another account.",
+					ValidateFunc: validation.All(
+						validation.StringLenBetween(2, 1224),
+						validation.StringMatch(regexp.MustCompile(`[\w+=,.@:\/\-]*`), ""),
+					),
+				},
+				"session_name": {
+					Type:        schema.TypeString,
+					Optional:    true,
+					Description: "An identifier for the assumed role session.",
+					ValidateFunc: validation.All(
+						validation.StringLenBetween(2, 64),
+						validation.StringMatch(regexp.MustCompile(`[\w+=,.@\-]*`), ""),
+					),
+				},
+			},
+		},
+	}
 }

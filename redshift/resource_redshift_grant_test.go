@@ -20,7 +20,7 @@ func TestAccRedshiftGrant_BasicDatabase(t *testing.T) {
 			{
 				Config: testAccRedshiftGrantConfig_BasicDatabase(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("%s_database", groupName)),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("gn:%s_ot:database", groupName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "database"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "privileges.#", "2"),
@@ -58,7 +58,7 @@ func TestAccRedshiftGrant_BasicSchema(t *testing.T) {
 			{
 				Config: testAccRedshiftGrantConfig_BasicSchema(userName, groupName, schemaName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("%s_schema_%s", groupName, schemaName)),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("gn:%s_ot:schema_%s", groupName, schemaName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "schema"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "privileges.#", "2"),
@@ -107,7 +107,7 @@ func TestAccRedshiftGrant_BasicTable(t *testing.T) {
 			{
 				Config: testAccRedshiftGrantConfig_BasicTable(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("%s_table_pg_catalog_pg_user_info", groupName)),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("gn:%s_ot:table_pg_catalog_pg_user_info", groupName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "schema", "pg_catalog"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "table"),

@@ -408,11 +408,11 @@ func createGroupGrantQuery(d *schema.ResourceData, databaseName string) string {
 }
 
 func generateGrantID(d *schema.ResourceData) string {
-	groupName := d.Get(defaultPrivilegesGroupAttr).(string)
-	objectType := d.Get(defaultPrivilegesObjectTypeAttr).(string)
+	groupName := fmt.Sprintf("gn:%s", d.Get(defaultPrivilegesGroupAttr).(string))
+	objectType := fmt.Sprintf("ot:%s", d.Get(defaultPrivilegesObjectTypeAttr).(string))
 	parts := []string{groupName, objectType}
 
-	if objectType != "database" {
+	if objectType != "ot:database" {
 		parts = append(parts, d.Get(grantSchemaAttr).(string))
 	}
 

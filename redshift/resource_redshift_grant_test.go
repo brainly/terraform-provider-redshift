@@ -20,7 +20,7 @@ func TestAccRedshiftGrant_BasicDatabase(t *testing.T) {
 			{
 				Config: testAccRedshiftGrantConfig_BasicDatabase(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("%s_database", groupName)),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("gn:%s_ot:database", groupName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "database"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "privileges.#", "2"),
@@ -58,7 +58,7 @@ func TestAccRedshiftGrant_BasicSchema(t *testing.T) {
 			{
 				Config: testAccRedshiftGrantConfig_BasicSchema(userName, groupName, schemaName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("%s_schema_%s", groupName, schemaName)),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("gn:%s_ot:schema_%s", groupName, schemaName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "schema"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "privileges.#", "2"),
@@ -107,7 +107,7 @@ func TestAccRedshiftGrant_BasicTable(t *testing.T) {
 			{
 				Config: testAccRedshiftGrantConfig_BasicTable(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("%s_table_pg_catalog_pg_user_info", groupName)),
+					resource.TestCheckResourceAttr("redshift_grant.grant", "id", fmt.Sprintf("gn:%s_ot:table_pg_catalog_pg_user_info", groupName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "schema", "pg_catalog"),
 					resource.TestCheckResourceAttr("redshift_grant.grant", "object_type", "table"),
@@ -192,4 +192,79 @@ resource "redshift_grant" "schema" {
 			},
 		},
 	})
+}
+
+func TestAccRedshiftGrant_Regression_Issue_43(t *testing.T) {
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_user_grant"), "-", "_")
+
+	config := fmt.Sprintf(`
+resource "redshift_user" "user" {
+  name      = %[1]q
+}
+
+resource "redshift_group" "y_schema" {
+  name  = "y_schema"
+  users = [redshift_user.user.name]
+}
+
+resource "redshift_group" "y" {
+  name  = "y"
+  users = [redshift_user.user.name]
+}
+
+resource "redshift_schema" "x" {
+  name  = "x"
+  owner = redshift_user.user.name
+}
+
+resource "redshift_schema" "schema_x" {
+  name  = "schema_x"
+  owner = redshift_user.user.name
+}
+
+resource "redshift_grant" "grants1" {
+  group       = redshift_group.y_schema.name
+  schema      = redshift_schema.x.name
+  object_type = "schema"
+  privileges  = ["USAGE"]
+}
+
+resource "redshift_grant" "grants2" {
+  group       = redshift_group.y.name
+  schema      = redshift_schema.schema_x.name
+  object_type = "schema"
+  privileges  = ["USAGE"]
+}
+`, userName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: func(s *terraform.State) error { return nil },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check:  testAccRedshiftGrant_Regression_Issue_43_compare_ids("redshift_grant.grants1", "redshift_grant.grants2"),
+			},
+		},
+	})
+}
+
+func testAccRedshiftGrant_Regression_Issue_43_compare_ids(addr1 string, addr2 string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs1, ok := s.RootModule().Resources[addr1]
+		if !ok {
+			return fmt.Errorf("Not found: %s", addr1)
+		}
+		rs2, ok := s.RootModule().Resources[addr2]
+		if !ok {
+			return fmt.Errorf("Not found: %s", addr2)
+		}
+
+		if rs1.Primary.ID == rs2.Primary.ID {
+			return fmt.Errorf("Resources %s and %s have the same ID: %s", addr1, addr2, rs1.Primary.ID)
+		}
+
+		return nil
+	}
 }

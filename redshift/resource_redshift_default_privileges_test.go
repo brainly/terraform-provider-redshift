@@ -3,6 +3,7 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -12,25 +13,62 @@ import (
 )
 
 func TestAccRedshiftDefaultPrivileges_Basic(t *testing.T) {
-	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_basic"), "-", "_")
+	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group"), "-", "_")
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_user"), "-", "_")
+	config := fmt.Sprintf(`
+resource "redshift_group" "group" {
+  name = %[1]q
+}
+
+resource "redshift_user" "user" {
+  name = %[2]q
+  password = "TestPassword123"
+}
+
+resource "redshift_default_privileges" "group" {
+  group = redshift_group.group.name
+  owner = "root"
+  object_type = "table"
+  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+}
+
+resource "redshift_default_privileges" "user" {
+  user = redshift_user.user.name
+  owner = "root"
+  object_type = "table"
+  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+}
+`, groupName, userName)
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckDefaultPrivilegesDestory(defaultPrivilegesAllSchemasID, 100, "r", groupName),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRedshiftDefaultPrivilegesConfig_Basic(groupName),
+				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_default_privileges.simple_table", "id", fmt.Sprintf("%s_noschema_root_table", groupName)),
-					resource.TestCheckResourceAttr("redshift_default_privileges.simple_table", "group", groupName),
-					resource.TestCheckResourceAttr("redshift_default_privileges.simple_table", "object_type", "table"),
-					resource.TestCheckResourceAttr("redshift_default_privileges.simple_table", "privileges.#", "6"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.simple_table", "privileges.*", "select"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.simple_table", "privileges.*", "update"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.simple_table", "privileges.*", "insert"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.simple_table", "privileges.*", "delete"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.simple_table", "privileges.*", "drop"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.simple_table", "privileges.*", "references"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "id", fmt.Sprintf("gn:%s_noschema_on:root_ot:table", groupName)),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "group", groupName),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "privileges.#", "6"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "select"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "update"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "insert"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "delete"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "drop"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "references"),
+
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "id", fmt.Sprintf("un:%s_noschema_on:root_ot:table", userName)),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "user", userName),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "privileges.#", "6"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "select"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "update"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "insert"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "delete"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "drop"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "references"),
 				),
 			},
 		},
@@ -38,35 +76,145 @@ func TestAccRedshiftDefaultPrivileges_Basic(t *testing.T) {
 }
 
 func TestAccRedshiftDefaultPrivileges_UpdateToRevoke(t *testing.T) {
-	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_basic"), "-", "_")
+	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group"), "-", "_")
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_user"), "-", "_")
+	configInitial := fmt.Sprintf(`
+resource "redshift_group" "group" {
+  name = %[1]q
+}
+
+resource "redshift_user" "user" {
+  name = %[2]q
+  password = "TestPassword123"
+}
+
+resource "redshift_default_privileges" "group" {
+  group = redshift_group.group.name
+  owner = "root"
+  object_type = "table"
+  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+}
+
+resource "redshift_default_privileges" "user" {
+  user = redshift_user.user.name
+  owner = "root"
+  object_type = "table"
+  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+}
+`, groupName, userName)
+
+	configUpdated := fmt.Sprintf(`
+resource "redshift_group" "group" {
+  name = %[1]q
+}
+
+resource "redshift_user" "user" {
+  name = %[2]q
+  password = "TestPassword123"
+}
+
+resource "redshift_default_privileges" "group" {
+  group = redshift_group.group.name
+  owner = "root"
+  object_type = "table"
+  privileges = []
+}
+
+resource "redshift_default_privileges" "user" {
+  user = redshift_user.user.name
+  owner = "root"
+  object_type = "table"
+  privileges = []
+}
+`, groupName, userName)
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckDefaultPrivilegesDestory(defaultPrivilegesAllSchemasID, 100, "r", groupName),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRedshiftDefaultPrivilegesConfig_Update_Create(groupName),
+				Config: configInitial,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "id", fmt.Sprintf("%s_noschema_root_table", groupName)),
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "group", groupName),
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "object_type", "table"),
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "privileges.#", "6"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.priv", "privileges.*", "select"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.priv", "privileges.*", "update"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.priv", "privileges.*", "insert"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.priv", "privileges.*", "delete"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.priv", "privileges.*", "drop"),
-					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.priv", "privileges.*", "references"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "id", fmt.Sprintf("gn:%s_noschema_on:root_ot:table", groupName)),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "group", groupName),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "privileges.#", "6"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "select"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "update"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "insert"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "delete"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "drop"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "references"),
+
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "id", fmt.Sprintf("un:%s_noschema_on:root_ot:table", userName)),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "user", userName),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "privileges.#", "6"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "select"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "update"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "insert"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "delete"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "drop"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "references"),
 				),
 			},
 			{
-				Config: testAccRedshiftDefaultPrivilegesConfig_Update_Updated(groupName),
+				Config: configUpdated,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "id", fmt.Sprintf("%s_noschema_root_table", groupName)),
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "group", groupName),
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "object_type", "table"),
-					resource.TestCheckResourceAttr("redshift_default_privileges.priv", "privileges.#", "0"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "id", fmt.Sprintf("gn:%s_noschema_on:root_ot:table", groupName)),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "group", groupName),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.group", "privileges.#", "0"),
+
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "id", fmt.Sprintf("un:%s_noschema_on:root_ot:table", userName)),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "user", userName),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_default_privileges.user", "privileges.#", "0"),
 				),
+			},
+		},
+	})
+}
+
+func TestAccRedshiftDefaultPrivileges_BothUserGroupError(t *testing.T) {
+	config := `
+resource "redshift_default_privileges" "both" {
+  user = "test_user"
+  group = "test_group"
+
+  owner = "root"
+  object_type = "table"
+  privileges = []
+}
+`
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("only one of `group,user` can be specified"),
+			},
+		},
+	})
+}
+
+func TestAccRedshiftDefaultPrivileges_NoUserGroupError(t *testing.T) {
+	config := `
+resource "redshift_default_privileges" "none" {
+  owner = "root"
+  object_type = "table"
+  privileges = []
+}
+`
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("one of `group,user` must be specified"),
 			},
 		},
 	})
@@ -104,7 +252,7 @@ func checkDefACLExists(client *Client, schemaID, ownerID int, objectType, groupN
 
 	var _rez int
 	err = db.QueryRow(
-		fmt.Sprintf("SELECT 1 from pg_default_acl WHERE defaclobjtype=$1 AND defaclnamespace=$2 AND defacluser=$3 AND array_to_string(defaclacl, '|') LIKE '%%group %s=%%'", groupName),
+		fmt.Sprintf("SELECT 1 from pg_default_acl WHERE defaclobjtype=$1 AND defaclnamespace=$2 AND defacluser=$3 AND array_to_string(defaclacl, '|') LIKE '%%%s=%%'", groupName),
 		objectType,
 		schemaID,
 		ownerID,
@@ -118,46 +266,4 @@ func checkDefACLExists(client *Client, schemaID, ownerID int, objectType, groupN
 	}
 
 	return true, nil
-}
-
-func testAccRedshiftDefaultPrivilegesConfig_Basic(groupName string) string {
-	return fmt.Sprintf(`
-resource "redshift_group" "group" {
-  name = %[1]q
-}
-
-resource "redshift_default_privileges" "simple_table" {
-  group = redshift_group.group.name
-  owner = "root"
-  object_type = "table"
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
-}`, groupName)
-}
-
-func testAccRedshiftDefaultPrivilegesConfig_Update_Create(groupName string) string {
-	return fmt.Sprintf(`
-resource "redshift_group" "group" {
-  name = %[1]q
-}
-
-resource "redshift_default_privileges" "priv" {
-  group = redshift_group.group.name
-  owner = "root"
-  object_type = "table"
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
-}`, groupName)
-}
-
-func testAccRedshiftDefaultPrivilegesConfig_Update_Updated(groupName string) string {
-	return fmt.Sprintf(`
-resource "redshift_group" "group" {
-  name = %[1]q
-}
-
-resource "redshift_default_privileges" "priv" {
-  group = redshift_group.group.name
-  owner = "root"
-  object_type = "table"
-  privileges = []
-}`, groupName)
 }

@@ -89,7 +89,7 @@ When you create a database object, you are its owner. By default, only a superus
 }
 
 func resourceRedshiftPrivilegeDelete(db *DBConnection, d *schema.ResourceData) error {
-	revokeQuery, revokeAlterDefaultQuery := createRevokeQuery(d)
+	revokeQuery, revokeAlterDefaultQuery := createPrivilegesRevokeQuery(d)
 
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
@@ -121,8 +121,8 @@ func resourceRedshiftPrivilegeCreate(db *DBConnection, d *schema.ResourceData) e
 		return fmt.Errorf("Invalid privileges list '%v' for object type '%s'", privileges, objectType)
 	}
 
-	revokeQuery, revokeAlterDefaultQuery := createRevokeQuery(d)
-	grantQuery, alterDefaultQuery := createGrantQuery(d, privileges)
+	revokeQuery, revokeAlterDefaultQuery := createPrivilegesRevokeQuery(d)
+	grantQuery, alterDefaultQuery := createPrivilegesGrantQuery(d, privileges)
 
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
@@ -272,7 +272,7 @@ func generatePrivilegesID(d *schema.ResourceData) string {
 	return strings.Join([]string{groupName, schemaName, objectType}, "_")
 }
 
-func createGrantQuery(d *schema.ResourceData, privileges []string) (grantQuery string, alterDefaultQuery string) {
+func createPrivilegesGrantQuery(d *schema.ResourceData, privileges []string) (grantQuery string, alterDefaultQuery string) {
 	if len(privileges) == 0 {
 		return
 	}
@@ -306,7 +306,7 @@ func createGrantQuery(d *schema.ResourceData, privileges []string) (grantQuery s
 	return
 }
 
-func createRevokeQuery(d *schema.ResourceData) (revokeQuery string, alterDefaultQuery string) {
+func createPrivilegesRevokeQuery(d *schema.ResourceData) (revokeQuery string, alterDefaultQuery string) {
 	schemaName := d.Get(privilegeSchemaAttr).(string)
 	groupName := d.Get(privilegeGroupAttr).(string)
 

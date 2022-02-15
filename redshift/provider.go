@@ -125,7 +125,6 @@ func Provider() *schema.Provider {
 			"redshift_user":                redshiftUser(),
 			"redshift_group":               redshiftGroup(),
 			"redshift_schema":              redshiftSchema(),
-			"redshift_privilege":           redshiftPrivilege(),
 			"redshift_default_privileges":  redshiftDefaultPrivileges(),
 			"redshift_grant":               redshiftGrant(),
 			"redshift_database":            redshiftDatabase(),

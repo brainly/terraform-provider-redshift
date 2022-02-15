@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	grantUserAttr       = "user"
 	grantGroupAttr      = "group"
 	grantSchemaAttr     = "schema"
 	grantObjectTypeAttr = "object_type"
@@ -32,7 +33,7 @@ var grantObjectTypesCodes = map[string][]string{
 func redshiftGrant() *schema.Resource {
 	return &schema.Resource{
 		Description: `
-Defines access privileges for user group. Privileges include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific privileges for a table, database, schema, function, procedure, language, or column.
+Defines access privileges for users and  groups. Privileges include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific privileges for a table, database, schema, function, procedure, language, or column.
 `,
 		Read: RedshiftResourceFunc(resourceRedshiftGrantRead),
 		Create: RedshiftResourceFunc(
@@ -48,17 +49,25 @@ Defines access privileges for user group. Privileges include access options such
 		),
 
 		Schema: map[string]*schema.Schema{
+			grantUserAttr: {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
+				Description:  "The name of the user to grant privileges on. Either `user` or `group` parameter must be set.",
+			},
 			grantGroupAttr: {
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: "The name of the group to grant privileges on.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
+				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set.",
 			},
 			grantSchemaAttr: {
 				Type:        schema.TypeString,
 				Optional:    true,
 				ForceNew:    true,
-				Description: "The database schema to grant privileges on for this group.",
+				Description: "The database schema to grant privileges on.",
 			},
 			grantObjectTypeAttr: {
 				Type:         schema.TypeString,
@@ -89,7 +98,7 @@ Defines access privileges for user group. Privileges include access options such
 					},
 				},
 				Set:         schema.HashString,
-				Description: "The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this group",
+				Description: "The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group",
 			},
 		},
 	}
@@ -124,11 +133,11 @@ func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error
 	}
 	defer deferredRollback(tx)
 
-	if err := revokeGroupGrants(tx, db.client.databaseName, d); err != nil {
+	if err := revokeGrants(tx, db.client.databaseName, d); err != nil {
 		return err
 	}
 
-	if err := createGroupGrants(tx, db.client.databaseName, d); err != nil {
+	if err := createGrants(tx, db.client.databaseName, d); err != nil {
 		return err
 	}
 
@@ -148,7 +157,7 @@ func resourceRedshiftGrantDelete(db *DBConnection, d *schema.ResourceData) error
 	}
 	defer deferredRollback(tx)
 
-	if err := revokeGroupGrants(tx, db.client.databaseName, d); err != nil {
+	if err := revokeGrants(tx, db.client.databaseName, d); err != nil {
 		return err
 	}
 
@@ -168,21 +177,36 @@ func resourceRedshiftGrantReadImpl(db *DBConnection, d *schema.ResourceData) err
 
 	switch objectType {
 	case "database":
-		return readGroupDatabaseGrants(db, d)
+		return readDatabaseGrants(db, d)
 	case "schema":
-		return readGroupSchemaGrants(db, d)
+		return readSchemaGrants(db, d)
 	case "table":
-		return readGroupTableGrants(db, d)
+		return readTableGrants(db, d)
 	default:
 		return fmt.Errorf("Unsupported %s %s", grantObjectTypeAttr, objectType)
 	}
 }
 
-func readGroupDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
-	groupName := d.Get(grantGroupAttr).(string)
+func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
+	var entityName, query string
 	var databaseCreate, databaseTemp bool
 
-	query := `
+	_, isUser := d.GetOk(grantUserAttr)
+
+	if isUser {
+		entityName = d.Get(grantUserAttr).(string)
+		query = `
+  SELECT
+    decode(charindex('C',split_part(split_part(regexp_replace(array_to_string(db.datacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
+    decode(charindex('T',split_part(split_part(regexp_replace(array_to_string(db.datacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as temporary
+  FROM pg_database db, pg_user u
+  WHERE
+    db.datname=$1 
+    AND u.usename=$2
+`
+	} else {
+		entityName = d.Get(grantGroupAttr).(string)
+		query = `
   SELECT
     decode(charindex('C',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as create,
     decode(charindex('T',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as temporary
@@ -191,8 +215,9 @@ func readGroupDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
     db.datname=$1 
     AND gr.groname=$2
 `
+	}
 
-	if err := db.QueryRow(query, db.client.databaseName, groupName).Scan(&databaseCreate, &databaseTemp); err != nil {
+	if err := db.QueryRow(query, db.client.databaseName, entityName).Scan(&databaseCreate, &databaseTemp); err != nil {
 		return err
 	}
 
@@ -200,20 +225,34 @@ func readGroupDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 	appendIfTrue(databaseCreate, "create", &privileges)
 	appendIfTrue(databaseTemp, "temporary", &privileges)
 
-	log.Printf("[DEBUG] Collected database '%s' privileges for group %s: %v", db.client.databaseName, groupName, privileges)
+	log.Printf("[DEBUG] Collected database '%s' privileges for %s: %v", db.client.databaseName, entityName, privileges)
 
 	d.Set(grantPrivilegesAttr, privileges)
 
 	return nil
 }
 
-func readGroupSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
-	groupName := d.Get(grantGroupAttr).(string)
-	schemaName := d.Get(grantSchemaAttr).(string)
-
+func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
+	var entityName, query string
 	var schemaCreate, schemaUsage bool
 
-	query := `
+	_, isUser := d.GetOk(grantUserAttr)
+	schemaName := d.Get(grantSchemaAttr).(string)
+
+	if isUser {
+		entityName = d.Get(grantUserAttr).(string)
+		query = `
+  SELECT
+    decode(charindex('C',split_part(split_part(regexp_replace(array_to_string(ns.nspacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
+    decode(charindex('U',split_part(split_part(regexp_replace(array_to_string(ns.nspacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage
+  FROM pg_namespace ns, pg_user u
+  WHERE
+    ns.nspname=$1 
+    AND u.usename=$2
+`
+	} else {
+		entityName = d.Get(grantGroupAttr).(string)
+		query = `
   SELECT
     decode(charindex('C',split_part(split_part(array_to_string(ns.nspacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as create,
     decode(charindex('U',split_part(split_part(array_to_string(ns.nspacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as usage
@@ -222,8 +261,9 @@ func readGroupSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
     ns.nspname=$1 
     AND gr.groname=$2
 `
+	}
 
-	if err := db.QueryRow(query, schemaName, groupName).Scan(&schemaCreate, &schemaUsage); err != nil {
+	if err := db.QueryRow(query, schemaName, entityName).Scan(&schemaCreate, &schemaUsage); err != nil {
 		return err
 	}
 
@@ -231,15 +271,38 @@ func readGroupSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	appendIfTrue(schemaCreate, "create", &privileges)
 	appendIfTrue(schemaUsage, "usage", &privileges)
 
-	log.Printf("[DEBUG] Collected schema '%s' privileges for group %s: %v", schemaName, groupName, privileges)
+	log.Printf("[DEBUG] Collected schema '%s' privileges for  %s: %v", schemaName, entityName, privileges)
 
 	d.Set(grantPrivilegesAttr, privileges)
 
 	return nil
 }
 
-func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
-	query := `
+func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
+	var entityName, query string
+	_, isUser := d.GetOk(grantUserAttr)
+
+	if isUser {
+		entityName = d.Get(grantUserAttr).(string)
+		query = `
+  SELECT
+    relname,
+    decode(charindex('r',split_part(split_part(regexp_replace(array_to_string(relacl, '|'),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as select,
+    decode(charindex('w',split_part(split_part(regexp_replace(array_to_string(relacl, '|'),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as update,
+    decode(charindex('a',split_part(split_part(regexp_replace(array_to_string(relacl, '|'),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as insert,
+    decode(charindex('d',split_part(split_part(regexp_replace(array_to_string(relacl, '|'),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as delete,
+    decode(charindex('D',split_part(split_part(regexp_replace(array_to_string(relacl, '|'),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as drop,
+    decode(charindex('x',split_part(split_part(regexp_replace(array_to_string(relacl, '|'),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as references
+  FROM pg_user u, pg_class cl
+  JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
+  WHERE
+    cl.relkind = ANY($1)
+    AND u.usename=$2
+    AND nsp.nspname=$3
+`
+	} else {
+		entityName = d.Get(grantGroupAttr).(string)
+		query = `
   SELECT
     relname,
     decode(charindex('r',split_part(split_part(array_to_string(relacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), null,0, 0,0, 1) as select,
@@ -255,12 +318,12 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
     AND gr.groname=$2
     AND nsp.nspname=$3
 `
+	}
 
-	groupName := d.Get(grantGroupAttr).(string)
 	schemaName := d.Get(grantSchemaAttr).(string)
 	objects := d.Get(grantObjectsAttr).(*schema.Set)
 
-	rows, err := db.Query(query, pq.Array(grantObjectTypesCodes["table"]), groupName, schemaName)
+	rows, err := db.Query(query, pq.Array(grantObjectTypesCodes["table"]), entityName, schemaName)
 	if err != nil {
 		return err
 	}
@@ -306,111 +369,143 @@ func readGroupTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	return nil
 }
 
-func revokeGroupGrants(tx *sql.Tx, databaseName string, d *schema.ResourceData) error {
-	query := createGroupRevokeQuery(d, databaseName)
+func revokeGrants(tx *sql.Tx, databaseName string, d *schema.ResourceData) error {
+	query := createGrantsRevokeQuery(d, databaseName)
 	_, err := tx.Exec(query)
 	return err
 }
 
-func createGroupGrants(tx *sql.Tx, databaseName string, d *schema.ResourceData) error {
+func createGrants(tx *sql.Tx, databaseName string, d *schema.ResourceData) error {
 	if d.Get(grantPrivilegesAttr).(*schema.Set).Len() == 0 {
-		log.Printf("[DEBUG] no privileges to grant for group %s", d.Get(grantGroupAttr).(string))
+		log.Printf("[DEBUG] no privileges to grant for %s", d.Get(grantGroupAttr).(string))
 		return nil
 	}
 
-	query := createGroupGrantQuery(d, databaseName)
+	query := createGrantsQuery(d, databaseName)
 	_, err := tx.Exec(query)
 	return err
 }
 
-func createGroupRevokeQuery(d *schema.ResourceData, databaseName string) string {
-	var query string
+func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string {
+	var query, toWhomIndicator, entityName string
+
+	if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		toWhomIndicator = "GROUP"
+		entityName = groupName.(string)
+	} else if userName, isUser := d.GetOk(grantUserAttr); isUser {
+		entityName = userName.(string)
+	}
 
 	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {
 	case "DATABASE":
 		query = fmt.Sprintf(
-			"REVOKE ALL PRIVILEGES ON DATABASE %s FROM GROUP %s",
+			"REVOKE ALL PRIVILEGES ON DATABASE %s FROM %s %s",
 			pq.QuoteIdentifier(databaseName),
-			pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+			toWhomIndicator,
+			pq.QuoteIdentifier(entityName),
 		)
 	case "SCHEMA":
 		query = fmt.Sprintf(
-			"REVOKE ALL PRIVILEGES ON SCHEMA %s FROM GROUP %s",
+			"REVOKE ALL PRIVILEGES ON SCHEMA %s FROM %s %s",
 			pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
-			pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+			toWhomIndicator,
+			pq.QuoteIdentifier(entityName),
 		)
 	case "TABLE":
 		objects := d.Get(grantObjectsAttr).(*schema.Set)
 		if objects.Len() > 0 {
 			query = fmt.Sprintf(
-				"REVOKE ALL PRIVILEGES ON %s %s FROM GROUP %s",
+				"REVOKE ALL PRIVILEGES ON %s %s FROM %s %s",
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				setToPgIdentList(objects, d.Get(grantSchemaAttr).(string)),
-				pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+				toWhomIndicator,
+				pq.QuoteIdentifier(entityName),
 			)
 		} else {
 			query = fmt.Sprintf(
-				"REVOKE ALL PRIVILEGES ON ALL %sS IN SCHEMA %s FROM GROUP %s",
+				"REVOKE ALL PRIVILEGES ON ALL %sS IN SCHEMA %s FROM %s %s",
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
-				pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+				toWhomIndicator,
+				pq.QuoteIdentifier(entityName),
 			)
 		}
 	}
-
+	log.Printf("[DEBUG] Created REVOKE query: %s", query)
 	return query
 }
 
-func createGroupGrantQuery(d *schema.ResourceData, databaseName string) string {
-	var query string
+func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
+	var query, toWhomIndicator, entityName string
 	privileges := []string{}
 	for _, p := range d.Get(grantPrivilegesAttr).(*schema.Set).List() {
 		privileges = append(privileges, p.(string))
 	}
 
+	if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		toWhomIndicator = "GROUP"
+		entityName = groupName.(string)
+	} else if userName, isUser := d.GetOk(grantUserAttr); isUser {
+		entityName = userName.(string)
+	}
+
 	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {
 	case "DATABASE":
 		query = fmt.Sprintf(
-			"GRANT %s ON DATABASE %s TO GROUP %s",
+			"GRANT %s ON DATABASE %s TO %s %s",
 			strings.Join(privileges, ","),
 			pq.QuoteIdentifier(databaseName),
-			pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+			toWhomIndicator,
+			pq.QuoteIdentifier(entityName),
 		)
 	case "SCHEMA":
 		query = fmt.Sprintf(
-			"GRANT %s ON SCHEMA %s TO GROUP %s",
+			"GRANT %s ON SCHEMA %s TO %s %s",
 			strings.Join(privileges, ","),
 			pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
-			pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+			toWhomIndicator,
+			pq.QuoteIdentifier(entityName),
 		)
 	case "TABLE":
 		objects := d.Get(grantObjectsAttr).(*schema.Set)
 		if objects.Len() > 0 {
 			query = fmt.Sprintf(
-				"GRANT %s ON %s %s TO GROUP %s",
+				"GRANT %s ON %s %s TO %s %s",
 				strings.Join(privileges, ","),
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				setToPgIdentList(objects, d.Get(grantSchemaAttr).(string)),
-				pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+				toWhomIndicator,
+				pq.QuoteIdentifier(entityName),
 			)
 		} else {
 			query = fmt.Sprintf(
-				"GRANT %s ON ALL %sS IN SCHEMA %s TO GROUP %s",
+				"GRANT %s ON ALL %sS IN SCHEMA %s TO %s %s",
 				strings.Join(privileges, ","),
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
-				pq.QuoteIdentifier(d.Get(grantGroupAttr).(string)),
+				toWhomIndicator,
+				pq.QuoteIdentifier(entityName),
 			)
 		}
 	}
 
+	log.Printf("[DEBUG] Created GRANT query: %s", query)
 	return query
 }
 
 func generateGrantID(d *schema.ResourceData) string {
-	groupName := fmt.Sprintf("gn:%s", d.Get(defaultPrivilegesGroupAttr).(string))
-	objectType := fmt.Sprintf("ot:%s", d.Get(defaultPrivilegesObjectTypeAttr).(string))
-	parts := []string{groupName, objectType}
+	parts := []string{}
+
+	if _, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		parts = append(parts, fmt.Sprintf("gn:%s", d.Get(grantGroupAttr).(string)))
+	}
+
+	if _, isUser := d.GetOk(grantUserAttr); isUser {
+		parts = append(parts, fmt.Sprintf("un:%s", d.Get(grantUserAttr).(string)))
+	}
+
+	objectType := fmt.Sprintf("ot:%s", d.Get(grantObjectTypeAttr).(string))
+	parts = append(parts, objectType)
 
 	if objectType != "ot:database" {
 		parts = append(parts, d.Get(grantSchemaAttr).(string))

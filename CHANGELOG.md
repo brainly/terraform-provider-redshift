@@ -1,10 +1,36 @@
 # Changelog
 
+## [v0.6.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.6.0) (2022-02-16)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.5.3...v0.6.0)
+
+**Implemented enhancements:**
+
+- Not able to GetClusterCredentials using cross account [\#46](https://github.com/brainly/terraform-provider-redshift/issues/46)
+- redshift\_grant resource does not support granting privileges to users [\#23](https://github.com/brainly/terraform-provider-redshift/issues/23)
+
+**Fixed bugs:**
+
+- non-unique ids in redshift\_grant possible [\#43](https://github.com/brainly/terraform-provider-redshift/issues/43)
+- Issue with revoking privileges while droping user [\#35](https://github.com/brainly/terraform-provider-redshift/issues/35)
+
+**Removed:**
+
+- Remove previously deprecated redshift\_privilege resource [\#54](https://github.com/brainly/terraform-provider-redshift/pull/54) ([winglot](https://github.com/winglot))
+
+**Merged pull requests:**
+
+- Update documentation with recent changes [\#55](https://github.com/brainly/terraform-provider-redshift/pull/55) ([winglot](https://github.com/winglot))
+- Support for users in redshift\_default\_privileges resources [\#53](https://github.com/brainly/terraform-provider-redshift/pull/53) ([winglot](https://github.com/winglot))
+- Support for users in redshift\_grant resource [\#52](https://github.com/brainly/terraform-provider-redshift/pull/52) ([winglot](https://github.com/winglot))
+- Fixed non-unique ids in redshift\_grant possible [\#51](https://github.com/brainly/terraform-provider-redshift/pull/51) ([rg00d](https://github.com/rg00d))
+- Support cross-account temporary credentials fetching [\#50](https://github.com/brainly/terraform-provider-redshift/pull/50) ([pawelaugustyn](https://github.com/pawelaugustyn))
+
 ## [v0.5.3](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.3) (2022-01-26)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.5.2...v0.5.3)
 
-**Fixed bugs:**
+**Merged pull requests:**
 
 - Fix typo in code - wrong variable referenced [\#48](https://github.com/brainly/terraform-provider-redshift/pull/48) ([matokovacik](https://github.com/matokovacik))
 
@@ -80,6 +106,7 @@
 - Manage datashare consumer permissions to use datashares [\#20](https://github.com/brainly/terraform-provider-redshift/pull/20) ([sworisbreathing](https://github.com/sworisbreathing))
 - Support connecting through a socks proxy [\#19](https://github.com/brainly/terraform-provider-redshift/pull/19) ([sworisbreathing](https://github.com/sworisbreathing))
 - Add simple `redshift\_datashare` resource [\#18](https://github.com/brainly/terraform-provider-redshift/pull/18) ([sworisbreathing](https://github.com/sworisbreathing))
+- Add `redshift\_namespace` data source [\#16](https://github.com/brainly/terraform-provider-redshift/pull/16) ([sworisbreathing](https://github.com/sworisbreathing))
 
 **Fixed bugs:**
 
@@ -104,7 +131,6 @@
 
 **Implemented enhancements:**
 
-- Add `redshift\_namespace` data source [\#16](https://github.com/brainly/terraform-provider-redshift/pull/16) ([sworisbreathing](https://github.com/sworisbreathing))
 - Add `redshift\_schema` data source [\#10](https://github.com/brainly/terraform-provider-redshift/pull/10) ([sworisbreathing](https://github.com/sworisbreathing))
 - Use md5 hashing for redshift\_user passwords [\#7](https://github.com/brainly/terraform-provider-redshift/pull/7) ([sworisbreathing](https://github.com/sworisbreathing))
 - Add `redshift\_user` data source [\#6](https://github.com/brainly/terraform-provider-redshift/pull/6) ([sworisbreathing](https://github.com/sworisbreathing))

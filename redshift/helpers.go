@@ -154,6 +154,9 @@ func splitCsvAndTrim(raw string) ([]string, error) {
 }
 
 func validatePrivileges(privileges []string, objectType string) bool {
+	if objectType == "language" && len(privileges) == 0 {
+		return false
+	}
 	for _, p := range privileges {
 		switch strings.ToUpper(objectType) {
 		case "SCHEMA":
@@ -173,6 +176,20 @@ func validatePrivileges(privileges []string, objectType string) bool {
 		case "DATABASE":
 			switch strings.ToUpper(p) {
 			case "CREATE", "TEMPORARY":
+				continue
+			default:
+				return false
+			}
+		case "PROCEDURE", "FUNCTION":
+			switch strings.ToUpper(p) {
+			case "EXECUTE":
+				continue
+			default:
+				return false
+			}
+		case "LANGUAGE":
+			switch strings.ToUpper(p) {
+			case "USAGE":
 				continue
 			default:
 				return false
@@ -202,4 +219,30 @@ func setToPgIdentList(identifiers *schema.Set, prefix string) string {
 	}
 
 	return strings.Join(quoted, ",")
+}
+
+// Quoted identifiers somehow does not work for grants/revokes on functions and procedures
+func setToPgIdentListNotQuoted(identifiers *schema.Set, prefix string) string {
+	quoted := make([]string, identifiers.Len())
+	for i, identifier := range identifiers.List() {
+		if prefix == "" {
+			quoted[i] = identifier.(string)
+		} else {
+			quoted[i] = fmt.Sprintf("%s.%s", prefix, identifier.(string))
+		}
+	}
+
+	return strings.Join(quoted, ",")
+}
+
+func stripArgumentsFromCallablesDefinitions(defs *schema.Set) []string {
+	parser := func(name string) string {
+		return strings.Split(name, "(")[0]
+	}
+
+	names := make([]string, defs.Len())
+	for _, def := range defs.List() {
+		names = append(names, parser(def.(string)))
+	}
+	return names
 }

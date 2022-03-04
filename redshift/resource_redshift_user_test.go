@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -219,6 +220,62 @@ resource "redshift_user" "superuser" {
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+			},
+		},
+	})
+}
+
+func TestAccRedshiftUser_SuperuserUnknownPassword(t *testing.T) {
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_superuser"), "-", "_")
+	config := fmt.Sprintf(`
+resource "redshift_user" "superuser" {
+  name = %[1]q
+  superuser = true
+	password  = unknown_string.password.result 
+}
+
+resource "unknown_string" "password" {}
+`, userName)
+
+	// unknownProvider is a mock provider that generates computed values that are unknown at plan time
+	// It simulates the behavior of the `random_password` resource
+	unknownProvider := &schema.Provider{
+		Schema: map[string]*schema.Schema{},
+		ResourcesMap: map[string]*schema.Resource{
+			"unknown_string": {
+				Schema: map[string]*schema.Schema{
+					"result": {
+						Type:     schema.TypeString,
+						Computed: true,
+					},
+				},
+				Create: func(d *schema.ResourceData, meta interface{}) error {
+					d.SetId("test")
+					d.Set("result", "TestPassword123")
+					return nil
+				},
+				Read: func(d *schema.ResourceData, meta interface{}) error {
+					return nil
+				},
+				Delete: func(d *schema.ResourceData, meta interface{}) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	providers := map[string]*schema.Provider{
+		"unknown":  unknownProvider,
+		"redshift": testAccProvider,
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    providers,
 		CheckDestroy: testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{

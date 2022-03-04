@@ -57,8 +57,10 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 		},
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, p interface{}) error {
 			isSuperuser := d.Get(userSuperuserAttr).(bool)
+			isPasswordKnown := d.NewValueKnown(userPasswordAttr)
+
 			password, hasPassword := d.GetOk(userPasswordAttr)
-			if isSuperuser && (!hasPassword || password.(string) == "") {
+			if isSuperuser && isPasswordKnown && (!hasPassword || password.(string) == "") {
 				return fmt.Errorf("Users that are superusers must define a password.")
 			}
 

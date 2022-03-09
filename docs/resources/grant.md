@@ -44,7 +44,7 @@ resource "redshift_grant" "user" {
 ### Required
 
 - **object_type** (String) The Redshift object type to grant privileges on (one of: table, schema, database, function, procedure, language).
-- **privileges** (Set of String) The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group
+- **privileges** (Set of String) The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group. Required when `object_type` is set to `language`.
 
 ### Optional
 

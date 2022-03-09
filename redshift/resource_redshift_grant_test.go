@@ -229,23 +229,23 @@ func TestAccRedshiftGrant_BasicCallables(t *testing.T) {
 				},
 				Config: testAccRedshiftGrant_basicCallables_configUserGroupWithGrants(userName, groupName, schema),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("redshift_grant.grant_fun", "id", fmt.Sprintf("gn:%s_ot:function_%s_test_func(float,float)", groupName, schema)),
+					resource.TestCheckResourceAttr("redshift_grant.grant_fun", "id", fmt.Sprintf("gn:%s_ot:function_%s_test_call(float,float)", groupName, schema)),
 					resource.TestCheckResourceAttr("redshift_grant.grant_fun", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant_fun", "object_type", "function"),
 					resource.TestCheckResourceAttr("redshift_grant.grant_fun", "privileges.#", "1"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_fun", "privileges.*", "execute"),
-					resource.TestCheckResourceAttr("redshift_grant.grant_proc", "id", fmt.Sprintf("gn:%s_ot:procedure_%s_test_proc()", groupName, schema)),
+					resource.TestCheckResourceAttr("redshift_grant.grant_proc", "id", fmt.Sprintf("gn:%s_ot:procedure_%s_test_call()", groupName, schema)),
 					resource.TestCheckResourceAttr("redshift_grant.grant_proc", "group", groupName),
 					resource.TestCheckResourceAttr("redshift_grant.grant_proc", "object_type", "procedure"),
 					resource.TestCheckResourceAttr("redshift_grant.grant_proc", "privileges.#", "1"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_proc", "privileges.*", "execute"),
 
-					resource.TestCheckResourceAttr("redshift_grant.grant_user_fun", "id", fmt.Sprintf("un:%s_ot:function_%s_test_func(float,float)", userName, schema)),
+					resource.TestCheckResourceAttr("redshift_grant.grant_user_fun", "id", fmt.Sprintf("un:%s_ot:function_%s_test_call(int,int)_test_call(float,float)", userName, schema)),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user_fun", "user", userName),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user_fun", "object_type", "function"),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user_fun", "privileges.#", "1"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_user_fun", "privileges.*", "execute"),
-					resource.TestCheckResourceAttr("redshift_grant.grant_user_proc", "id", fmt.Sprintf("un:%s_ot:procedure_%s_test_proc()", userName, schema)),
+					resource.TestCheckResourceAttr("redshift_grant.grant_user_proc", "id", fmt.Sprintf("un:%s_ot:procedure_%s_test_call()", userName, schema)),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user_proc", "user", userName),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user_proc", "object_type", "procedure"),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user_proc", "privileges.#", "1"),
@@ -487,7 +487,7 @@ resource "redshift_group" "group" {
 resource "redshift_grant" "grant_fun" {
 	schema = %[3]q
   group  = redshift_group.group.name
-  objects = ["test_func(float,float)"]
+  objects = ["test_call(float,float)"]
 
   object_type = "function"
   privileges = ["execute"]
@@ -496,7 +496,7 @@ resource "redshift_grant" "grant_fun" {
 resource "redshift_grant" "grant_proc" {
 	schema = %[3]q
   group  = redshift_group.group.name
-  objects = ["test_proc()"]
+  objects = ["test_call()"]
 
   object_type = "procedure"
   privileges = ["execute"]
@@ -505,7 +505,7 @@ resource "redshift_grant" "grant_proc" {
 resource "redshift_grant" "grant_user_fun" {
 	schema = %[3]q
   user = redshift_user.user.name
-  objects = ["test_func(float,float)"]
+  objects = ["test_call(float,float)", "test_call(int,int)"]
 
   object_type = "function"
   privileges = ["execute"]
@@ -514,7 +514,7 @@ resource "redshift_grant" "grant_user_fun" {
 resource "redshift_grant" "grant_user_proc" {
 	schema = %[3]q
   user = redshift_user.user.name
-  objects = ["test_proc()"]
+  objects = ["test_call()"]
 
   object_type = "procedure"
   privileges = ["execute"]
@@ -529,7 +529,7 @@ func testAccRedshiftGrant_basicCallables_createSchemaAndCallables(t *testing.T, 
 	}
 
 	function := fmt.Sprintf(`
-	create function %s.test_func (a float, b float)
+	create function %s.test_call (a float, b float)
 		returns float
 	stable
 	as $$
@@ -544,8 +544,24 @@ func testAccRedshiftGrant_basicCallables_createSchemaAndCallables(t *testing.T, 
 		return fmt.Errorf("couldn't create function: %s", err)
 	}
 
+	function2 := fmt.Sprintf(`
+	create function %s.test_call (a int, b int)
+		returns int
+	stable
+	as $$
+		if a > b:
+			return a
+		return b
+	$$ language plpythonu;
+`, schema)
+
+	_, err = db.Exec(function2)
+	if err != nil {
+		return fmt.Errorf("couldn't create function2: %s", err)
+	}
+
 	procedure := fmt.Sprintf(`
-	CREATE PROCEDURE %s.test_proc() AS $$
+	CREATE PROCEDURE %s.test_call() AS $$
 		BEGIN
 	RAISE NOTICE 'Hello, world!';
 		END

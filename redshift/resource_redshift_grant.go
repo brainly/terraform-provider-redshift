@@ -30,7 +30,9 @@ var grantAllowedObjectTypes = []string{
 }
 
 var grantObjectTypesCodes = map[string][]string{
-	"table": []string{"r", "m", "v"},
+	"table":     {"r", "m", "v"},
+	"procedure": {"p"},
+	"function":  {"f"},
 }
 
 func redshiftGrant() *schema.Resource {
@@ -101,7 +103,7 @@ Defines access privileges for users and  groups. Privileges include access optio
 					},
 				},
 				Set:         schema.HashString,
-				Description: "The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group",
+				Description: "The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group. Required when `object_type` is set to `language`.",
 			},
 		},
 	}
@@ -126,7 +128,7 @@ func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error
 		return fmt.Errorf("cannot specify `%s` when `%s` is `database` or `schema`", grantObjectsAttr, grantObjectTypeAttr)
 	}
 
-	if objectType == "language" && len(objects) < 1 {
+	if objectType == "language" && len(objects) == 0 {
 		return fmt.Errorf("parameter `%s` is required for objects of type language", grantObjectsAttr)
 	}
 
@@ -385,6 +387,7 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	_, isUser := d.GetOk(grantUserAttr)
 	schemaName := d.Get(grantSchemaAttr).(string)
+	objectType := d.Get(grantObjectTypeAttr).(string)
 
 	if isUser {
 		entityName = d.Get(grantUserAttr).(string)
@@ -392,12 +395,13 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 	SELECT
 		proname,
 		decode(nvl(charindex('X',split_part(split_part(regexp_replace(array_to_string(pr.proacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0), 0,0,1) as execute
-	FROM pg_proc pr
+	FROM pg_proc_info pr
 		JOIN pg_namespace nsp ON nsp.oid = pr.pronamespace,
 	pg_user u
 	WHERE
 		nsp.nspname=$1 
 		AND u.usename=$2
+		AND pr.prokind=ANY($3)
 `
 	} else {
 		entityName = d.Get(grantGroupAttr).(string)
@@ -405,18 +409,19 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 	SELECT
 		proname,
 		decode(nvl(charindex('X',split_part(split_part(array_to_string(pr.proacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0), 0,0,1) as execute
-	FROM pg_proc pr
+	FROM pg_proc_info pr
 		JOIN pg_namespace nsp ON nsp.oid = pr.pronamespace,
 	pg_group gr
 	WHERE
 		nsp.nspname=$1 
     AND gr.groname=$2
+		AND pr.prokind=ANY($3)
 `
 	}
 
 	callables := stripArgumentsFromCallablesDefinitions(d.Get(grantObjectsAttr).(*schema.Set))
 
-	rows, err := db.Query(query, schemaName, entityName)
+	rows, err := db.Query(query, schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]))
 	if err != nil {
 		return err
 	}
@@ -430,6 +435,7 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 		return false
 	}
 
+	privilegesSet := schema.NewSet(schema.HashString, nil)
 	for rows.Next() {
 		var objName string
 		var callableExecute bool
@@ -441,15 +447,13 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 			continue
 		}
 
-		privilegesSet := schema.NewSet(schema.HashString, nil)
 		if callableExecute {
 			privilegesSet.Add("execute")
 		}
+	}
 
-		if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {
-			d.Set(grantPrivilegesAttr, privilegesSet)
-			break
-		}
+	if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {
+		d.Set(grantPrivilegesAttr, privilegesSet)
 	}
 
 	return nil

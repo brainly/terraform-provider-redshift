@@ -146,7 +146,7 @@ resource "redshift_grant" "grant" {
 
   object_type = "table"
   objects = ["pg_user_info"]
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
 }
 
 resource "redshift_grant" "grant_user" {
@@ -155,7 +155,7 @@ resource "redshift_grant" "grant_user" {
 
   object_type = "table"
   objects = ["pg_user_info"]
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
 }
 `, groupName, userName)
 
@@ -180,6 +180,8 @@ resource "redshift_grant" "grant_user" {
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "delete"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "drop"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant", "privileges.*", "trigger"),
 
 					resource.TestCheckResourceAttr("redshift_grant.grant_user", "id", fmt.Sprintf("un:%s_ot:table_pg_catalog_pg_user_info", userName)),
 					resource.TestCheckResourceAttr("redshift_grant.grant_user", "user", userName),
@@ -194,6 +196,8 @@ resource "redshift_grant" "grant_user" {
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_user", "privileges.*", "delete"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_user", "privileges.*", "drop"),
 					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_user", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_user", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.grant_user", "privileges.*", "trigger"),
 				),
 			},
 		},

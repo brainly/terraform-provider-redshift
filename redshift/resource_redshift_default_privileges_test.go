@@ -29,14 +29,14 @@ resource "redshift_default_privileges" "group" {
   group = redshift_group.group.name
   owner = "root"
   object_type = "table"
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
 }
 
 resource "redshift_default_privileges" "user" {
   user = redshift_user.user.name
   owner = "root"
   object_type = "table"
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
 }
 `, groupName, userName)
 
@@ -58,6 +58,8 @@ resource "redshift_default_privileges" "user" {
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "delete"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "drop"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "trigger"),
 
 					resource.TestCheckResourceAttr("redshift_default_privileges.user", "id", fmt.Sprintf("un:%s_noschema_on:root_ot:table", userName)),
 					resource.TestCheckResourceAttr("redshift_default_privileges.user", "user", userName),
@@ -69,6 +71,8 @@ resource "redshift_default_privileges" "user" {
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "delete"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "drop"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "trigger"),
 				),
 			},
 		},
@@ -92,14 +96,14 @@ resource "redshift_default_privileges" "group" {
   group = redshift_group.group.name
   owner = "root"
   object_type = "table"
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
 }
 
 resource "redshift_default_privileges" "user" {
   user = redshift_user.user.name
   owner = "root"
   object_type = "table"
-  privileges = ["select", "update", "insert", "delete", "drop", "references"]
+  privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
 }
 `, groupName, userName)
 
@@ -146,6 +150,8 @@ resource "redshift_default_privileges" "user" {
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "delete"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "drop"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.group", "privileges.*", "trigger"),
 
 					resource.TestCheckResourceAttr("redshift_default_privileges.user", "id", fmt.Sprintf("un:%s_noschema_on:root_ot:table", userName)),
 					resource.TestCheckResourceAttr("redshift_default_privileges.user", "user", userName),
@@ -157,6 +163,8 @@ resource "redshift_default_privileges" "user" {
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "delete"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "drop"),
 					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_default_privileges.user", "privileges.*", "trigger"),
 				),
 			},
 			{

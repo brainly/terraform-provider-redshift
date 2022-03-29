@@ -203,3 +203,12 @@ func setToPgIdentList(identifiers *schema.Set, prefix string) string {
 
 	return strings.Join(quoted, ",")
 }
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}

@@ -35,6 +35,13 @@ resource "redshift_datashare" "my_datashare" {
     "public",
     "other",
   ]
+  # Optional. Specifies which schema tables to expose to the datashare.
+  schema_tables = [
+    "schema1.table1",
+    "schema1.table2",
+    "schema2.table1",
+    "schema2.table2",
+  ]
 }
 ```
 
@@ -50,6 +57,7 @@ resource "redshift_datashare" "my_datashare" {
 - **id** (String) The ID of this resource.
 - **owner** (String) The user who owns the datashare.
 - **publicly_accessible** (Boolean) Specifies whether the datashare can be shared to clusters that are publicly accessible. Default is `false`.
+- **schema_tables** (Set of String) Defines which schema tables are exposed to the data share.
 - **schemas** (Set of String) Defines which schemas are exposed to the data share.
 
 ### Read-Only

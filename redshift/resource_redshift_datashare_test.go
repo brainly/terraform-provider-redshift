@@ -28,11 +28,12 @@ resource "redshift_user" "user" {
 
 resource "redshift_datashare" "basic" {
 	%[5]s = %[2]q
+	%[6]s = ["schema1.table1"]
 	depends_on = [
 		redshift_user.user,
 	]
 }
-`, schemaNameAttr, shareName, schemaCascadeOnDeleteAttr, userNameAttr, dataShareNameAttr)
+`, schemaNameAttr, shareName, schemaCascadeOnDeleteAttr, userNameAttr, dataShareNameAttr, dataShareSchemaTablesAttr)
 
 	configUpdate := fmt.Sprintf(`
 resource "redshift_schema" "schema" {
@@ -51,8 +52,9 @@ resource "redshift_datashare" "basic" {
 	%[8]s = [
 		redshift_schema.schema.%[1]s,
 	]
+	%[9]s = ["schema1.table1", "schema1.table2", "schema2.table1", "schema2.table2"]
 }
-`, schemaNameAttr, shareName, schemaCascadeOnDeleteAttr, userNameAttr, dataShareNameAttr, dataShareOwnerAttr, dataSharePublicAccessibleAttr, dataShareSchemasAttr)
+`, schemaNameAttr, shareName, schemaCascadeOnDeleteAttr, userNameAttr, dataShareNameAttr, dataShareOwnerAttr, dataSharePublicAccessibleAttr, dataShareSchemasAttr, dataShareSchemaTablesAttr)
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -69,6 +71,8 @@ resource "redshift_datashare" "basic" {
 					resource.TestCheckResourceAttrSet("redshift_datashare.basic", dataShareProducerNamespaceAttr),
 					resource.TestCheckResourceAttrSet("redshift_datashare.basic", dataShareCreatedAttr),
 					resource.TestCheckResourceAttr("redshift_datashare.basic", fmt.Sprintf("%s.#", dataShareSchemasAttr), "0"),
+					resource.TestCheckResourceAttr("redshift_datashare.basic", fmt.Sprintf("%s.#", dataShareSchemaTablesAttr), "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_datashare.basic", fmt.Sprintf("%s.*", dataShareSchemaTablesAttr), shareName),
 				),
 			},
 			{
@@ -83,6 +87,8 @@ resource "redshift_datashare" "basic" {
 					resource.TestCheckResourceAttrSet("redshift_datashare.basic", dataShareCreatedAttr),
 					resource.TestCheckResourceAttr("redshift_datashare.basic", fmt.Sprintf("%s.#", dataShareSchemasAttr), "1"),
 					resource.TestCheckTypeSetElemAttr("redshift_datashare.basic", fmt.Sprintf("%s.*", dataShareSchemasAttr), shareName),
+					resource.TestCheckResourceAttr("redshift_datashare.basic", fmt.Sprintf("%s.#", dataShareSchemaTablesAttr), "4"),
+					resource.TestCheckTypeSetElemAttr("redshift_datashare.basic", fmt.Sprintf("%s.*", dataShareSchemaTablesAttr), shareName),
 				),
 			},
 			{
@@ -96,6 +102,8 @@ resource "redshift_datashare" "basic" {
 					resource.TestCheckResourceAttrSet("redshift_datashare.basic", dataShareProducerNamespaceAttr),
 					resource.TestCheckResourceAttrSet("redshift_datashare.basic", dataShareCreatedAttr),
 					resource.TestCheckResourceAttr("redshift_datashare.basic", fmt.Sprintf("%s.#", dataShareSchemasAttr), "0"),
+					resource.TestCheckResourceAttr("redshift_datashare.basic", fmt.Sprintf("%s.#", dataShareSchemaTablesAttr), "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_datashare.basic", fmt.Sprintf("%s.*", dataShareSchemaTablesAttr), shareName),
 				),
 			},
 			{

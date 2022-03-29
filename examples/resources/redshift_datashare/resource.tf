@@ -8,4 +8,11 @@ resource "redshift_datashare" "my_datashare" {
     "public",
     "other",
   ]
+  # Optional. Specifies which schema tables to expose to the datashare.
+  schema_tables = [
+    "schema1.table1",
+    "schema1.table2",
+    "schema2.table1",
+    "schema2.table2",
+  ]
 }

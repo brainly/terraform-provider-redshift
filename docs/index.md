@@ -76,6 +76,7 @@ Optional:
 - **auto_create_user** (Boolean) Create a database user with the name specified for the user if one does not exist.
 - **db_groups** (Set of String) A list of the names of existing database groups that the user will join for the current session, in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
 - **duration_seconds** (Number) The number of seconds until the returned temporary password expires.
+- **region** (String) The AWS region where the Redshift cluster is located.
 
 <a id="nestedblock--temporary_credentials--assume_role"></a>
 ### Nested Schema for `temporary_credentials.assume_role`

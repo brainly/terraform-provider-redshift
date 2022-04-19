@@ -93,6 +93,11 @@ func Provider() *schema.Provider {
 							Description:  "The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.",
 							ValidateFunc: validation.StringLenBetween(1, 2147483647),
 						},
+						"region": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "The AWS region where the Redshift cluster is located.",
+						},
 						"auto_create_user": {
 							Type:        schema.TypeBool,
 							Optional:    true,
@@ -231,6 +236,11 @@ func redshiftSdkClient(d *schema.ResourceData) (*redshift.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if region := d.Get("temporary_credentials.0.region").(string); region != "" {
+		cfg.Region = region
+	}
+
 	if _, ok := d.GetOk("temporary_credentials.0.assume_role"); ok {
 		var parsedRoleArn string
 		if roleArn, ok := d.GetOk("temporary_credentials.0.assume_role.0.arn"); ok {

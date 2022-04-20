@@ -50,6 +50,56 @@ func TestValidatePrivileges(t *testing.T) {
 			objectType: "table",
 			expected:   true,
 		},
+		"valid list for function": {
+			privileges: []string{"execute"},
+			objectType: "function",
+			expected:   true,
+		},
+		"invalid list for function": {
+			privileges: []string{"foo"},
+			objectType: "function",
+			expected:   false,
+		},
+		"extended invalid list for function": {
+			privileges: []string{"execute", "foo"},
+			objectType: "function",
+			expected:   false,
+		},
+		"valid list for procedure": {
+			privileges: []string{"execute"},
+			objectType: "procedure",
+			expected:   true,
+		},
+		"invalid list for procedure": {
+			privileges: []string{"foo"},
+			objectType: "procedure",
+			expected:   false,
+		},
+		"extended invalid list for procedure": {
+			privileges: []string{"execute", "foo"},
+			objectType: "procedure",
+			expected:   false,
+		},
+		"valid list for language": {
+			privileges: []string{"usage"},
+			objectType: "language",
+			expected:   true,
+		},
+		"invalid list for language": {
+			privileges: []string{"foo"},
+			objectType: "language",
+			expected:   false,
+		},
+		"extended invalid list for language": {
+			privileges: []string{"usage", "foo"},
+			objectType: "language",
+			expected:   false,
+		},
+		"empty list for language": {
+			privileges: []string{},
+			objectType: "language",
+			expected:   false,
+		},
 	}
 
 	for name, tt := range tests {

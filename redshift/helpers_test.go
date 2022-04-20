@@ -31,7 +31,7 @@ func TestValidatePrivileges(t *testing.T) {
 			expected:   true,
 		},
 		"valid list for table": {
-			privileges: []string{"insert", "update", "delete", "select", "drop", "references"},
+			privileges: []string{"insert", "update", "delete", "select", "drop", "references", "rule", "trigger"},
 			objectType: "table",
 			expected:   true,
 		},

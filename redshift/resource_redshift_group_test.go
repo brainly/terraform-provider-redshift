@@ -59,7 +59,7 @@ resource "redshift_group" "update_group" {
   name = "update_group2"
   users = [
     redshift_user.group_update_user1.name,
-    upper(redshift_user.group_update_user2.name),
+    redshift_user.group_update_user2.name,
   ]
 }
 `

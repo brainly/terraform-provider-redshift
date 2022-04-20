@@ -28,7 +28,7 @@ func TestAccRedshiftUser_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("redshift_user.simple", "name", "user_simple"),
 
 					testAccCheckRedshiftUserExists("John-and-Jane.doe@example.com"),
-					resource.TestCheckResourceAttr("redshift_user.with_email", "name", "john-and-jane.doe@example.com"),
+					resource.TestCheckResourceAttr("redshift_user.with_email", "name", "John-and-Jane.doe@example.com"),
 					testAccCheckRedshiftUserCanLogin("John-and-Jane.doe@example.com", "Foobarbaz1"),
 
 					testAccCheckRedshiftUserExists("user_defaults"),
@@ -330,7 +330,7 @@ func checkUserExists(client *Client, user string) (bool, error) {
 		return false, err
 	}
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", strings.ToLower(user)).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", user).Scan(&_rez)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil

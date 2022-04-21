@@ -75,9 +75,6 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 				ValidateFunc: validation.StringNotInSlice([]string{
 					"public",
 				}, true),
-				StateFunc: func(val interface{}) string {
-					return strings.ToLower(val.(string))
-				},
 			},
 			userPasswordAttr: {
 				Type:        schema.TypeString,
@@ -238,7 +235,7 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 	}
 
 	var usesysid string
-	if err := tx.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", strings.ToLower(userName)).Scan(&usesysid); err != nil {
+	if err := tx.QueryRow("SELECT usesysid FROM pg_user_info WHERE usename = $1", userName).Scan(&usesysid); err != nil {
 		return fmt.Errorf("user does not exist in pg_user_info table: %w", err)
 	}
 

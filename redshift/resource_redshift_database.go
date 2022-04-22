@@ -46,9 +46,6 @@ func redshiftDatabase() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Description: "Owner of the database, usually the user who created it",
-				StateFunc: func(val interface{}) string {
-					return strings.ToLower(val.(string))
-				},
 			},
 			databaseConnLimitAttr: {
 				Type:         schema.TypeInt,

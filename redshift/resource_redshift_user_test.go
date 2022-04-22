@@ -186,28 +186,6 @@ resource "redshift_user" "update_superuser" {
 	})
 }
 
-func TestAccRedshiftUser_SuperuserRequiresPassword(t *testing.T) {
-	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_superuser"), "-", "_")
-	config := fmt.Sprintf(`
-resource "redshift_user" "superuser" {
-  name = %[1]q
-  superuser = true
-}
-`, userName)
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config:      config,
-				ExpectError: regexp.MustCompile("Users that are superusers must define a password."),
-			},
-		},
-	})
-}
-
 func TestAccRedshiftUser_SuperuserFalseDoesntRequiresPassword(t *testing.T) {
 	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_superuser"), "-", "_")
 	config := fmt.Sprintf(`

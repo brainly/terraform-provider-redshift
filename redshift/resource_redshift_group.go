@@ -47,9 +47,6 @@ Groups are collections of users who are all granted whatever privileges are asso
 				Optional: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
-					StateFunc: func(val interface{}) string {
-						return strings.ToLower(val.(string))
-					},
 				},
 				Description: "List of the user names to add to the group",
 			},

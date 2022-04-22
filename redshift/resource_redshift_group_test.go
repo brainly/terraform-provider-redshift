@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
@@ -39,30 +40,33 @@ func TestAccRedshiftGroup_Basic(t *testing.T) {
 }
 
 func TestAccRedshiftGroup_Update(t *testing.T) {
-
-	var configCreate = `
+	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("TF_acc_group"), "-", "_")
+	groupNameUpdated := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_updated"), "-", "_")
+	userName1 := strings.ReplaceAll(acctest.RandomWithPrefix("TF_Acc_Group_User"), "-", "_")
+	userName2 := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_user"), "-", "_")
+	configCreate := fmt.Sprintf(`
 resource "redshift_group" "update_group" {
-  name = "update_group"
+  name = %[1]q
 }
-`
+`, groupName)
 
-	var configUpdate = `
+	configUpdate := fmt.Sprintf(`
 resource "redshift_user" "group_update_user1" {
-  name = "group_update_user1"
+  name = %[1]q
 }
 
 resource "redshift_user" "group_update_user2" {
-  name = "group_update_user2"
+  name = %[2]q
 }
 
 resource "redshift_group" "update_group" {
-  name = "update_group2"
+  name = %[3]q
   users = [
     redshift_user.group_update_user1.name,
     redshift_user.group_update_user2.name,
   ]
 }
-`
+`, userName1, userName2, groupNameUpdated)
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -71,25 +75,27 @@ resource "redshift_group" "update_group" {
 			{
 				Config: configCreate,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRedshiftGroupExists("update_group"),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "name", "update_group"),
+					testAccCheckRedshiftGroupExists(groupName),
+					resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupName)),
 					resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "0"),
 				),
 			},
 			{
 				Config: configUpdate,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRedshiftGroupExists("update_group2"),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "name", "update_group2"),
+					testAccCheckRedshiftGroupExists(groupNameUpdated),
+					resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupNameUpdated)),
 					resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "2"),
+					resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName1),
+					resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName2),
 				),
 			},
 			// apply the first one again to check if all parameters roll back properly
 			{
 				Config: configCreate,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRedshiftGroupExists("update_group"),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "name", "update_group"),
+					testAccCheckRedshiftGroupExists(groupName),
+					resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupName)),
 					resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "0"),
 				),
 			},
@@ -176,7 +182,7 @@ resource "redshift_group" "group_users" {
 }
 
 resource "redshift_user" "group_test_user1" {
-  name = "group_test_user1"
+  name = "GROUP_TEST_USER1"
 }
 
 resource "redshift_user" "group_test_user2" {

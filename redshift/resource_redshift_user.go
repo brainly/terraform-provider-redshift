@@ -1,7 +1,6 @@
 package redshift
 
 import (
-	"context"
 	"crypto/md5"
 	"database/sql"
 	"fmt"

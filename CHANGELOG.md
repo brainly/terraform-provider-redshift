@@ -1,5 +1,32 @@
 # Changelog
 
+## [v1.0.0](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.0) (2022-04-22)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.6.0...v1.0.0)
+
+**Implemented enhancements:**
+
+- Ability to grant EXECUTE function [\#34](https://github.com/brainly/terraform-provider-redshift/issues/34)
+- Add rule and trigger permissions to grant and default\_grant [\#63](https://github.com/brainly/terraform-provider-redshift/pull/63) ([mtesch-um](https://github.com/mtesch-um))
+- Add `region` support when calling `GetClusterCredentials` [\#60](https://github.com/brainly/terraform-provider-redshift/pull/60) ([bendrucker](https://github.com/bendrucker))
+- Support language, function and procedure object types in redshift\_grant resource [\#57](https://github.com/brainly/terraform-provider-redshift/pull/57) ([pawelaugustyn](https://github.com/pawelaugustyn))
+
+**Fixed bugs:**
+
+- Quoted user names are now always case-sensitive regardless of enable\_case\_sensitive\_identifier setting [\#67](https://github.com/brainly/terraform-provider-redshift/issues/67)
+- `user`: handle unknown superuser passwords [\#59](https://github.com/brainly/terraform-provider-redshift/pull/59) ([bendrucker](https://github.com/bendrucker))
+
+**Closed issues:**
+
+- "grant ALL on table.." grants more permissions than available in redshift\_grant [\#62](https://github.com/brainly/terraform-provider-redshift/issues/62)
+- redshift\_grant resource does not support language object [\#45](https://github.com/brainly/terraform-provider-redshift/issues/45)
+
+**Merged pull requests:**
+
+- Preserve user names case in group membership list and database owner attribute [\#69](https://github.com/brainly/terraform-provider-redshift/pull/69) ([winglot](https://github.com/winglot))
+- Make sure quoted user name case is preserved in state [\#68](https://github.com/brainly/terraform-provider-redshift/pull/68) ([winglot](https://github.com/winglot))
+- Before alter group make sure user still exists [\#66](https://github.com/brainly/terraform-provider-redshift/pull/66) ([lukasbudisky](https://github.com/lukasbudisky))
+
 ## [v0.6.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.6.0) (2022-02-16)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.5.3...v0.6.0)

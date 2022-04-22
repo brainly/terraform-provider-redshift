@@ -213,6 +213,21 @@ func setGroupName(tx *sql.Tx, d *schema.ResourceData) error {
 	return nil
 }
 
+func checkIfUserExists(tx *sql.Tx, name string) (bool, error) {
+
+	var result int
+	err := tx.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", name).Scan(&result)
+
+	switch err {
+	case sql.ErrNoRows:
+		return false, nil
+	case nil:
+		return false, fmt.Errorf("error reading info about user: %s", err)
+	}
+
+	return true, nil
+}
+
 func setUsersNames(tx *sql.Tx, db *DBConnection, d *schema.ResourceData) error {
 	if !d.HasChange(groupUsersAttr) {
 		return nil
@@ -226,13 +241,22 @@ func setUsersNames(tx *sql.Tx, db *DBConnection, d *schema.ResourceData) error {
 	if removedUsers.Len() > 0 {
 		removedUsersNamesSafe := []string{}
 		for _, name := range removedUsers.List() {
-			removedUsersNamesSafe = append(removedUsersNamesSafe, pq.QuoteIdentifier(name.(string)))
+			userExists, err := checkIfUserExists(tx, name.(string))
+			if err != nil {
+				return err
+			}
+
+			if userExists {
+				removedUsersNamesSafe = append(removedUsersNamesSafe, pq.QuoteIdentifier(name.(string)))
+			}
 		}
 
-		sql := fmt.Sprintf("ALTER GROUP %s DROP USER %s", pq.QuoteIdentifier(groupName), strings.Join(removedUsersNamesSafe, ", "))
+		if len(removedUsersNamesSafe) > 0 {
+			sql := fmt.Sprintf("ALTER GROUP %s DROP USER %s", pq.QuoteIdentifier(groupName), strings.Join(removedUsersNamesSafe, ", "))
 
-		if _, err := tx.Exec(sql); err != nil {
-			return err
+			if _, err := tx.Exec(sql); err != nil {
+				return err
+			}
 		}
 	}
 

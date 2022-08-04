@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.0.1](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.1) (2022-08-04)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.0...v1.0.1)
+
+**Fixed bugs:**
+
+- Fix readSchemaGrants and readTableGrants for groups [\#76](https://github.com/brainly/terraform-provider-redshift/pull/76) ([olivermeyer](https://github.com/olivermeyer))
+
 ## [v1.0.0](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.0) (2022-04-22)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.6.0...v1.0.0)
@@ -83,6 +91,7 @@
 
 - Deprecate redshift\_privilege resource [\#40](https://github.com/brainly/terraform-provider-redshift/pull/40) ([winglot](https://github.com/winglot))
 - Require password for superuser at plan phase [\#39](https://github.com/brainly/terraform-provider-redshift/pull/39) ([winglot](https://github.com/winglot))
+- Extend grant detection also to views and materialized views. [\#31](https://github.com/brainly/terraform-provider-redshift/pull/31) ([matokovacik](https://github.com/matokovacik))
 
 ## [v0.5.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.0) (2021-12-10)
 
@@ -105,7 +114,6 @@
 **Merged pull requests:**
 
 - Rewrite DiffSuppressFunc for create\_external\_database\_if\_not\_exists. [\#32](https://github.com/brainly/terraform-provider-redshift/pull/32) ([winglot](https://github.com/winglot))
-- Extend grant detection also to views and materialized views. [\#31](https://github.com/brainly/terraform-provider-redshift/pull/31) ([matokovacik](https://github.com/matokovacik))
 
 ## [v0.4.2](https://github.com/brainly/terraform-provider-redshift/tree/v0.4.2) (2021-10-12)
 

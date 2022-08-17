@@ -213,7 +213,7 @@ func setGroupName(tx *sql.Tx, d *schema.ResourceData) error {
 func checkIfUserExists(tx *sql.Tx, name string) (bool, error) {
 
 	var result int
-	err := tx.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", name).Scan(&result)
+	err := tx.QueryRow("SELECT 1 from pg_user_info WHERE usename='$1'", name).Scan(&result)
 
 	switch err {
 	case sql.ErrNoRows:

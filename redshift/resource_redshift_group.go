@@ -215,10 +215,10 @@ func checkIfUserExists(tx *sql.Tx, name string) (bool, error) {
 	var result int
 	err := tx.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", name).Scan(&result)
 
-	switch err {
-	case sql.ErrNoRows:
+	switch {
+	case err == sql.ErrNoRows:
 		return false, nil
-	case nil:
+	case err != nil:
 		return false, fmt.Errorf("error reading info about user: %s", err)
 	}
 

@@ -103,6 +103,73 @@ resource "redshift_group" "update_group" {
 	})
 }
 
+func TestAccRedshiftGroup_RemoveExistingUser(t *testing.T) {
+	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("TF_acc_group"), "-", "_")
+	userName1 := strings.ReplaceAll(acctest.RandomWithPrefix("TF_Acc_Group_User"), "-", "_")
+	userName2 := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_user"), "-", "_")
+
+	configCreate := fmt.Sprintf(`
+resource "redshift_group" "group" {
+  name  = %[1]q
+  users = [
+	redshift_user.user1.name,
+	redshift_user.user2.name,
+  ]
+}
+
+resource "redshift_user" "user1" {
+	name = %[2]q
+}
+  
+resource "redshift_user" "user2" {
+name = %[3]q
+}
+`, groupName, userName1, userName2)
+
+	configUpdate := fmt.Sprintf(`
+resource "redshift_group" "group" {
+	name  = %[1]q
+	users = [
+		redshift_user.user1.name
+	]
+}
+
+resource "redshift_user" "user1" {
+	name = %[2]q
+}
+
+resource "redshift_user" "user2" {
+	name = %[3]q
+}
+`, groupName, userName1, userName2)
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckRedshiftGroupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: configCreate,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedshiftGroupExists(groupName),
+					resource.TestCheckResourceAttr("redshift_group.group", "name", strings.ToLower(groupName)),
+					resource.TestCheckResourceAttr("redshift_group.group", "users.#", "2"),
+					resource.TestCheckTypeSetElemAttr("redshift_group.group", "users.*", userName1),
+					resource.TestCheckTypeSetElemAttr("redshift_group.group", "users.*", userName2),
+				),
+			},
+			{
+				Config: configUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedshiftGroupExists(groupName),
+					resource.TestCheckResourceAttr("redshift_group.group", "name", strings.ToLower(groupName)),
+					resource.TestCheckResourceAttr("redshift_group.group", "users.#", "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_group.group", "users.*", userName1),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckRedshiftGroupDestroy(s *terraform.State) error {
 	client := testAccProvider.Meta().(*Client)
 

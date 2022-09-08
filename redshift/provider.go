@@ -125,6 +125,12 @@ func Provider() *schema.Provider {
 					},
 				},
 			},
+			"is_serverless": {
+				Type:        schema.TypeBool,
+				Description: "Flag if redshift is serverless.",
+				Optional:    true,
+				Default:     false,
+			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"redshift_user":                redshiftUser(),
@@ -160,6 +166,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		Database: d.Get("database").(string),
 		SSLMode:  d.Get("sslmode").(string),
 		MaxConns: d.Get("max_connections").(int),
+		IsServerless: d.Get("is_serverless").(bool),
 	}
 
 	log.Println("[DEBUG] creating database client")

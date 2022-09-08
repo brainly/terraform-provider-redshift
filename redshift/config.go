@@ -24,6 +24,7 @@ type Config struct {
 	Database string
 	SSLMode  string
 	MaxConns int
+	IsServerless bool
 }
 
 // Client struct holding connection string

@@ -449,24 +449,21 @@ func resourceRedshiftSchemaReadImpl(db *DBConnection, d *schema.ResourceData) er
 }
 
 func resourceRedshiftSchemaReadLocal(db *DBConnection, d *schema.ResourceData) error {
-	var schemaQuota int
-
-	err := db.QueryRow(`
-		SELECT
-		  COALESCE(quota, 0)
-		FROM svv_schema_quota_state
-		WHERE schema_id = $1
-	`, d.Id()).Scan(&schemaQuota)
-	switch {
-	case err == sql.ErrNoRows:
-		schemaQuota = 0
-	case err != nil:
-		return err
+	var schemaQuota int = 0
+	if !db.client.config.IsServerless {
+		err := db.QueryRow(`
+			SELECT
+			COALESCE(quota, 0)
+			FROM svv_schema_quota_state
+			WHERE schema_id = $1
+		`, d.Id()).Scan(&schemaQuota)
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
 	}
-
 	d.Set(schemaQuotaAttr, schemaQuota)
 	d.Set(schemaExternalSchemaAttr, nil)
-
+	
 	return nil
 }
 

@@ -56,6 +56,7 @@ provider "redshift" {
 
 - **database** (String) The name of the database to connect to. The default is `redshift`.
 - **host** (String) Name of Redshift server address to connect to.
+- **is_serverless** (Boolean) Flag if redshift is serverless.
 - **max_connections** (Number) Maximum number of connections to establish to the database. Zero means unlimited.
 - **password** (String, Sensitive) Password to be used if the Redshift server demands password authentication.
 - **port** (Number) The Redshift port number to connect to at the server host.

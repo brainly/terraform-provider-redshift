@@ -21,3 +21,10 @@ resource "redshift_grant" "user" {
   objects     = ["my_function(float)"]
   privileges  = ["execute"]
 }
+
+resource "redshift_grant" "datashare_database" {
+  group       = "analysts"
+  object_type = "datashare_database"
+  objects     = ["analysts_datashare_database"]
+  privileges  = ["usage"]
+}

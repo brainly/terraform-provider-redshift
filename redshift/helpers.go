@@ -180,6 +180,13 @@ func validatePrivileges(privileges []string, objectType string) bool {
 			default:
 				return false
 			}
+		case "DATASHARE_DATABASE":
+			switch strings.ToUpper(p) {
+			case "USAGE":
+				continue
+			default:
+				return false
+			}
 		case "PROCEDURE", "FUNCTION":
 			switch strings.ToUpper(p) {
 			case "EXECUTE":

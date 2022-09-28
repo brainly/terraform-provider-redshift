@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.0.2-1](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.2-1) (2022-09-28)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.2...v1.0.2-1)
+
+**Closed issues:**
+
+- Error when remove user from group [\#83](https://github.com/brainly/terraform-provider-redshift/issues/83)
+
+**Merged pull requests:**
+
+- Improve docs for redshift\_datashare\_privilege resource [\#77](https://github.com/brainly/terraform-provider-redshift/pull/77) ([szemek](https://github.com/szemek))
+
 ## [v1.0.2](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.2) (2022-09-02)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.1...v1.0.2)

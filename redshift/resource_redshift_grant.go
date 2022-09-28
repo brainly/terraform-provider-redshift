@@ -24,6 +24,7 @@ var grantAllowedObjectTypes = []string{
 	"table",
 	"schema",
 	"database",
+	"datashare_database",
 	"function",
 	"procedure",
 	"language",
@@ -38,7 +39,7 @@ var grantObjectTypesCodes = map[string][]string{
 func redshiftGrant() *schema.Resource {
 	return &schema.Resource{
 		Description: `
-Defines access privileges for users and  groups. Privileges include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific privileges for a table, database, schema, function, procedure, language, or column.
+Defines access privileges for users and  groups. Privileges include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific privileges for a table, database, datashare_database, schema, function, procedure, language, or column.
 `,
 		Read: RedshiftResourceFunc(resourceRedshiftGrantRead),
 		Create: RedshiftResourceFunc(
@@ -91,7 +92,7 @@ Defines access privileges for users and  groups. Privileges include access optio
 					},
 				},
 				Set:         schema.HashString,
-				Description: "The objects upon which to grant the privileges. An empty list (the default) means to grant permissions on all objects of the specified type. Ignored when `object_type` is one of (`database`, `schema`).",
+				Description: "The objects upon which to grant the privileges. An empty list (the default) means to grant permissions on all objects of the specified type. Ignored when `object_type` is one of (`schema`).  There is a current limitation that if `object_type` is one of (`database`,`datashare_database`), the list can only have a single element, i.e. as a part of one resource, grants for only one `database` or `datashare_database` can be created. If you want to add grants for multiple, you can create them in separate resources",
 			},
 			grantPrivilegesAttr: {
 				Type:     schema.TypeSet,
@@ -112,11 +113,16 @@ Defines access privileges for users and  groups. Privileges include access optio
 func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error {
 	objectType := d.Get(grantObjectTypeAttr).(string)
 	schemaName := d.Get(grantSchemaAttr).(string)
-	objects := d.Get(grantObjectsAttr).(*schema.Set).List()
+	var databaseName string
 
 	privileges := []string{}
 	for _, p := range d.Get(grantPrivilegesAttr).(*schema.Set).List() {
 		privileges = append(privileges, p.(string))
+	}
+
+	objects := []string{}
+	for _, p := range d.Get(grantObjectsAttr).(*schema.Set).List() {
+		objects = append(objects, p.(string))
 	}
 
 	// validate parameters
@@ -124,12 +130,16 @@ func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error
 		return fmt.Errorf("parameter `%s` is required for objects of type table, function and procedure", grantSchemaAttr)
 	}
 
-	if (objectType == "database" || objectType == "schema") && len(objects) > 0 {
+	if (objectType == "schema") && len(objects) > 0 {
 		return fmt.Errorf("cannot specify `%s` when `%s` is `database` or `schema`", grantObjectsAttr, grantObjectTypeAttr)
 	}
 
 	if objectType == "language" && len(objects) == 0 {
 		return fmt.Errorf("parameter `%s` is required for objects of type language", grantObjectsAttr)
+	}
+
+	if (objectType == "datashare_database" || objectType == "database") && len(objects) > 1 {
+		return fmt.Errorf("parameter `%s` can have only one value when `%s` is one of (`database`,`datashare_database`)", grantObjectsAttr, grantObjectTypeAttr)
 	}
 
 	if !validatePrivileges(privileges, objectType) {
@@ -142,11 +152,17 @@ func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error
 	}
 	defer deferredRollback(tx)
 
-	if err := revokeGrants(tx, db.client.databaseName, d); err != nil {
+	if objectType == "datashare_database" || objectType == "database" {
+		databaseName = objects[0]
+	} else {
+		databaseName = db.client.databaseName
+	}
+
+	if err := revokeGrants(tx, databaseName, d); err != nil {
 		return err
 	}
 
-	if err := createGrants(tx, db.client.databaseName, d); err != nil {
+	if err := createGrants(tx, databaseName, d); err != nil {
 		return err
 	}
 
@@ -160,13 +176,26 @@ func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error
 }
 
 func resourceRedshiftGrantDelete(db *DBConnection, d *schema.ResourceData) error {
+
+	objectType := d.Get(grantObjectTypeAttr).(string)
+	objects := []string{}
+	for _, p := range d.Get(grantObjectsAttr).(*schema.Set).List() {
+		objects = append(objects, p.(string))
+	}
+	var databaseName string
+	if objectType == "datashare_database" || objectType == "database" {
+		databaseName = objects[0]
+	} else {
+		databaseName = db.client.databaseName
+	}
+
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
 		return err
 	}
 	defer deferredRollback(tx)
 
-	if err := revokeGrants(tx, db.client.databaseName, d); err != nil {
+	if err := revokeGrants(tx, databaseName, d); err != nil {
 		return err
 	}
 
@@ -185,7 +214,7 @@ func resourceRedshiftGrantReadImpl(db *DBConnection, d *schema.ResourceData) err
 	objectType := d.Get(grantObjectTypeAttr).(string)
 
 	switch objectType {
-	case "database":
+	case "database", "datashare_database":
 		return readDatabaseGrants(db, d)
 	case "schema":
 		return readSchemaGrants(db, d)
@@ -202,7 +231,19 @@ func resourceRedshiftGrantReadImpl(db *DBConnection, d *schema.ResourceData) err
 
 func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 	var entityName, query string
-	var databaseCreate, databaseTemp bool
+	var databaseCreate, databaseTemp, databaseUsage bool
+
+	objectType := d.Get(grantObjectTypeAttr).(string)
+	objects := []string{}
+	for _, p := range d.Get(grantObjectsAttr).(*schema.Set).List() {
+		objects = append(objects, p.(string))
+	}
+	var databaseName string
+	if objectType == "datashare_database" || objectType == "database" {
+		databaseName = objects[0]
+	} else {
+		databaseName = db.client.databaseName
+	}
 
 	_, isUser := d.GetOk(grantUserAttr)
 
@@ -211,7 +252,8 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
   SELECT
     decode(charindex('C',split_part(split_part(regexp_replace(array_to_string(db.datacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(regexp_replace(array_to_string(db.datacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as temporary
+    decode(charindex('T',split_part(split_part(regexp_replace(array_to_string(db.datacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as temporary,
+    decode(charindex('U',split_part(split_part(regexp_replace(array_to_string(db.datacl, '|'),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage
   FROM pg_database db, pg_user u
   WHERE
     db.datname=$1 
@@ -222,7 +264,8 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
   SELECT
     decode(charindex('C',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as temporary
+    decode(charindex('T',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as temporary,
+    decode(charindex('U',split_part(split_part(array_to_string(db.datacl, '|'),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as usage
   FROM pg_database db, pg_group gr
   WHERE
     db.datname=$1 
@@ -230,15 +273,16 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 `
 	}
 
-	if err := db.QueryRow(query, db.client.databaseName, entityName).Scan(&databaseCreate, &databaseTemp); err != nil {
+	if err := db.QueryRow(query, databaseName, entityName).Scan(&databaseCreate, &databaseTemp, &databaseUsage); err != nil {
 		return err
 	}
 
 	privileges := []string{}
 	appendIfTrue(databaseCreate, "create", &privileges)
 	appendIfTrue(databaseTemp, "temporary", &privileges)
+	appendIfTrue(databaseUsage, "usage", &privileges)
 
-	log.Printf("[DEBUG] Collected database '%s' privileges for %s: %v", db.client.databaseName, entityName, privileges)
+	log.Printf("[DEBUG] Collected database '%s' privileges for %s: %v", databaseName, entityName, privileges)
 
 	d.Set(grantPrivilegesAttr, privileges)
 
@@ -565,6 +609,13 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 			toWhomIndicator,
 			pq.QuoteIdentifier(entityName),
 		)
+	case "DATASHARE_DATABASE":
+		query = fmt.Sprintf(
+			"REVOKE USAGE ON DATABASE %s FROM %s %s",
+			pq.QuoteIdentifier(databaseName),
+			toWhomIndicator,
+			pq.QuoteIdentifier(entityName),
+		)
 	case "SCHEMA":
 		query = fmt.Sprintf(
 			"REVOKE ALL PRIVILEGES ON SCHEMA %s FROM %s %s",
@@ -638,7 +689,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 	}
 
 	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {
-	case "DATABASE":
+	case "DATABASE", "DATASHARE_DATABASE":
 		query = fmt.Sprintf(
 			"GRANT %s ON DATABASE %s TO %s %s",
 			strings.Join(privileges, ","),
@@ -716,7 +767,7 @@ func generateGrantID(d *schema.ResourceData) string {
 	objectType := fmt.Sprintf("ot:%s", d.Get(grantObjectTypeAttr).(string))
 	parts = append(parts, objectType)
 
-	if objectType != "ot:database" && objectType != "ot:language" {
+	if objectType != "ot:database" && objectType != "ot:language" && objectType != "ot:datashare_database" {
 		parts = append(parts, d.Get(grantSchemaAttr).(string))
 	}
 

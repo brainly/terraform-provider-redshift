@@ -197,7 +197,11 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 		if val != "" {
 			switch {
 			case opt.hclKey == userPasswordAttr:
-				createOpts = append(createOpts, fmt.Sprintf("%s '%s'", opt.sqlKey, md5Password(userName, val)))
+				if strings.HasPrefix(val, "md5") {
+					createOpts = append(createOpts, fmt.Sprintf("%s '%s'", opt.sqlKey, pqQuoteLiteral(val)))
+				} else {
+					createOpts = append(createOpts, fmt.Sprintf("%s '%s'", opt.sqlKey, md5Password(userName, val)))
+				}
 			case opt.hclKey == userValidUntilAttr:
 				switch {
 				case v.(string) == "", strings.ToLower(v.(string)) == "infinity":

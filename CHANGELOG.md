@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.0.3](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.3) (2022-11-15)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.2...v1.0.3)
+
+**Fixed bugs:**
+
+- Fix non-idempotent reapplying grants for entities with ascii chars 33-126 in their names ([rg00d](https://github.com/rg00d))
+
 ## [v1.0.2](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.2) (2022-09-02)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.1...v1.0.2)

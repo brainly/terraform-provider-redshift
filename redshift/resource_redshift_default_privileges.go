@@ -220,18 +220,18 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, entityI
 	if entityIsUser {
 		query = `
 	      SELECT 
-		decode(charindex('r',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as select,
-		decode(charindex('w',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as update,
-		decode(charindex('a',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as insert,
-		decode(charindex('d',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as delete,
-		decode(charindex('D',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as drop,
-		decode(charindex('x',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as references,
-		decode(charindex('R',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as rule,
-		decode(charindex('t',split_part(split_part(regexp_replace(array_to_string(defaclacl, '|'), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as trigger
+		decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as select,
+		decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as update,
+		decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as insert,
+		decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as delete,
+		decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as drop,
+		decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as references,
+		decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as rule,
+		decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as trigger
 	      FROM pg_user u, pg_default_acl acl
 	      WHERE 
 		acl.defaclnamespace = $1
-		AND regexp_replace(array_to_string(acl.defaclacl, '|'), 'group '||u.usename) LIKE '%' || u.usename || '=%'
+		AND regexp_replace(replace(array_to_string(acl.defaclacl, '|'), '"', ''), 'group '||u.usename) LIKE '%' || u.usename || '=%'
 		AND u.usesysid = $2
 		AND acl.defaclobjtype = $3
 		AND acl.defacluser = $4
@@ -239,18 +239,18 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, entityI
 	} else {
 		query = `
 	      SELECT 
-		decode(charindex('r',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as select,
-		decode(charindex('w',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as update,
-		decode(charindex('a',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as insert,
-		decode(charindex('d',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as delete,
-		decode(charindex('D',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as drop,
-		decode(charindex('x',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as references,
-		decode(charindex('R',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as rule,
-		decode(charindex('t',split_part(split_part(array_to_string(defaclacl, '|'),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as trigger
+		decode(charindex('r',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as select,
+		decode(charindex('w',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as update,
+		decode(charindex('a',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as insert,
+		decode(charindex('d',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as delete,
+		decode(charindex('D',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as drop,
+		decode(charindex('x',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as references,
+		decode(charindex('R',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as rule,
+		decode(charindex('t',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as trigger
 	      FROM pg_group gr, pg_default_acl acl
 	      WHERE 
 		acl.defaclnamespace = $1
-		AND array_to_string(acl.defaclacl, '|') LIKE '%' || 'group ' || gr.groname || '=%'
+		AND replace(array_to_string(acl.defaclacl, '|'), '"', '') LIKE '%' || 'group ' || gr.groname || '=%'
 		AND gr.grosysid = $2
 		AND acl.defaclobjtype = $3
 		AND acl.defacluser = $4

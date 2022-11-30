@@ -489,7 +489,7 @@ func setUserPassword(tx *sql.Tx, d *schema.ResourceData) error {
 
 	passwdTok := "PASSWORD DISABLE"
 	if password != "" {
-		passwdTok = fmt.Sprintf("PASSWORD '%s'", pqQuoteLiteral(password))
+		passwdTok = fmt.Sprintf("PASSWORD '%s'", md5Password(userName, password))
 	}
 
 	sql := fmt.Sprintf("ALTER USER %s %s", pq.QuoteIdentifier(userName), passwdTok)
@@ -613,7 +613,7 @@ func getDefaultSyslogAccess(d *schema.ResourceData) string {
 // 3. prefix the result with 'md5' (unquoted)
 func md5Password(userName string, password string) string {
 	if strings.HasPrefix(password, "md5") {
-		return password
+		return pqQuoteLiteral(password)
 	}
 	return fmt.Sprintf("md5%x", md5.Sum([]byte(fmt.Sprintf("%s%s", password, userName))))
 }

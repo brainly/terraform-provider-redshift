@@ -292,6 +292,7 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 }
 
 func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
+	log.Printf("[DEBUG] Reading table grants")
 	var entityName, query string
 	_, isUser := d.GetOk(grantUserAttr)
 
@@ -344,6 +345,7 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var objName string
@@ -388,11 +390,14 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 			break
 		}
 	}
+	log.Printf("[DEBUG] Collected table grants")
 
 	return nil
 }
 
 func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
+	log.Printf("[DEBUG] Reading callable grants")
+
 	var entityName, query string
 
 	_, isUser := d.GetOk(grantUserAttr)
@@ -444,6 +449,7 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 		}
 		return false
 	}
+	defer rows.Close()
 
 	privilegesSet := schema.NewSet(schema.HashString, nil)
 	for rows.Next() {
@@ -465,11 +471,13 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 	if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {
 		d.Set(grantPrivilegesAttr, privilegesSet)
 	}
+	log.Printf("[DEBUG] Reading callable grants - Done")
 
 	return nil
 }
 
 func readLanguageGrants(db *DBConnection, d *schema.ResourceData) error {
+	log.Printf("[DEBUG] Reading language grants")
 
 	var entityName, query string
 
@@ -503,6 +511,7 @@ func readLanguageGrants(db *DBConnection, d *schema.ResourceData) error {
 	}
 
 	objects := d.Get(grantObjectsAttr).(*schema.Set)
+	defer rows.Close()
 
 	for rows.Next() {
 		var objName string
@@ -526,6 +535,7 @@ func readLanguageGrants(db *DBConnection, d *schema.ResourceData) error {
 			break
 		}
 	}
+	log.Printf("[DEBUG] Reading language grants - Done")
 
 	return nil
 }

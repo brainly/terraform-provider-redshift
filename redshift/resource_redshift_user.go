@@ -224,7 +224,9 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 
 	for _, opt := range intOpts {
 		val := d.Get(opt.hclKey).(int)
-		if opt.hclKey != userSessionTimeoutAttr && val != 0 {
+		if opt.hclKey == userSessionTimeoutAttr && val != 0 {
+			createOpts = append(createOpts, fmt.Sprintf("%s %d", opt.sqlKey, val))
+		} else if opt.hclKey != userSessionTimeoutAttr {
 			createOpts = append(createOpts, fmt.Sprintf("%s %d", opt.sqlKey, val))
 		}
 	}

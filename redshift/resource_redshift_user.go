@@ -2,7 +2,6 @@ package redshift
 
 import (
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"fmt"
 	"log"
@@ -187,7 +186,6 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 		{userCreateDBAttr, "CREATEDB", "NOCREATEDB"},
 	}
 
-	userName := d.Get(userNameAttr).(string)
 	createOpts := make([]string, 0, len(stringOpts)+len(intOpts)+len(boolOpts))
 	for _, opt := range stringOpts {
 		v, ok := d.GetOk(opt.hclKey)
@@ -211,7 +209,7 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 		if val != "" {
 			switch {
 			case opt.hclKey == userPasswordAttr:
-				createOpts = append(createOpts, fmt.Sprintf("%s '%s'", opt.sqlKey, md5Password(userName, val)))
+				createOpts = append(createOpts, fmt.Sprintf("%s '%s'", opt.sqlKey, pqQuoteLiteral(val)))
 			case opt.hclKey == userValidUntilAttr:
 				switch {
 				case v.(string) == "", strings.ToLower(v.(string)) == "infinity":
@@ -245,6 +243,7 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 		createOpts = append(createOpts, valStr)
 	}
 
+	userName := d.Get(userNameAttr).(string)
 	createStr := strings.Join(createOpts, " ")
 	sql := fmt.Sprintf("CREATE USER %s WITH %s", pq.QuoteIdentifier(userName), createStr)
 
@@ -653,14 +652,4 @@ func getDefaultSyslogAccess(d *schema.ResourceData) string {
 	}
 
 	return defaultUserSyslogAccess
-}
-
-// Generates an md5 password for the user.
-// Per https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_USER.html,
-// the process is:
-// 1. concatenate the password and username
-// 2. convert the concatenated string to an md5 hash in hex format
-// 3. prefix the result with 'md5' (unquoted)
-func md5Password(userName string, password string) string {
-	return fmt.Sprintf("md5%x", md5.Sum([]byte(fmt.Sprintf("%s%s", password, userName))))
 }

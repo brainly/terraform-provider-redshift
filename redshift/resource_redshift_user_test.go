@@ -31,6 +31,9 @@ func TestAccRedshiftUser_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("redshift_user.with_email", "name", "John-and-Jane.doe@example.com"),
 					testAccCheckRedshiftUserCanLogin("John-and-Jane.doe@example.com", "Foobarbaz1"),
 
+					testAccCheckRedshiftUserExists("hashed_password"),
+					testAccCheckRedshiftUserCanLogin("hashed_password", "Foobarbaz2"),
+
 					testAccCheckRedshiftUserExists("user_defaults"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "name", "user_defaults"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "superuser", "false"),
@@ -411,6 +414,11 @@ resource "redshift_user" "simple" {
 resource "redshift_user" "with_email" {
   name = "John-and-Jane.doe@example.com"
   password = "Foobarbaz1"
+}
+
+resource "redshift_user" "with_hashed_password" {
+  name = "hashed_password"
+  password = "md5ad3b897bab2474bc7e408326cb18c42f"
 }
 
 resource "redshift_user" "user_with_defaults" {

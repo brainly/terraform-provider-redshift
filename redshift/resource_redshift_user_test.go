@@ -84,6 +84,15 @@ resource "redshift_user" "update_user" {
   create_database = true
 }
 `
+	var configUpdate2 = `
+resource "redshift_user" "update_user" {
+  name = "update_user2"
+  connection_limit = 5
+  password = "md508d5d11f1f947091b312fb36b25e621f"
+  syslog_access = "UNRESTRICTED"
+  create_database = true
+}
+`
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -113,6 +122,14 @@ resource "redshift_user" "update_user" {
 					resource.TestCheckResourceAttr("redshift_user.update_user", "valid_until", "infinity"),
 					resource.TestCheckResourceAttr("redshift_user.update_user", "syslog_access", "UNRESTRICTED"),
 					resource.TestCheckResourceAttr("redshift_user.update_user", "create_database", "true"),
+				),
+			},
+			{
+				Config: configUpdate2,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedshiftUserExists("update_user2"),
+					testAccCheckRedshiftUserCanLogin("update_user2", "Foobarbaz6"),
+					resource.TestCheckResourceAttr("redshift_user.update_user", "password", "md508d5d11f1f947091b312fb36b25e621f"),
 				),
 			},
 			// apply the first one again to check if all parameters roll back properly

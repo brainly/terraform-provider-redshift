@@ -40,33 +40,128 @@ func TestAccRedshiftGroup_Basic(t *testing.T) {
 }
 
 func TestAccRedshiftGroup_Update(t *testing.T) {
-	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("TF_acc_group"), "-", "_")
+	groupNames := []string{
+		strings.ReplaceAll(acctest.RandomWithPrefix("TF_acc_group"), "-", "_"),
+		strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group"), "-", "_"),
+		strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group@tf_acc_domain.tld"), "-", "_"),
+	}
+	userNames := []string{
+		strings.ReplaceAll(acctest.RandomWithPrefix("TF_Acc_Group_User"), "-", "_"),
+		strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_user"), "-", "_"),
+		strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_user@tf_acc_domain.tld"), "-", "_"),
+	}
 	groupNameUpdated := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_updated"), "-", "_")
+
+	for _, groupName := range groupNames {
+		userName1 := userNames[0]
+		userName2 := userNames[1]
+		userName3 := userNames[2]
+
+		configCreate := fmt.Sprintf(`
+		resource "redshift_group" "update_group" {
+		  name = %[1]q
+		}
+		`, groupName)
+
+		configUpdate := fmt.Sprintf(`
+		resource "redshift_user" "group_update_user1" {
+		  name = %[1]q
+		}
+		
+		resource "redshift_user" "group_update_user2" {
+		  name = %[2]q
+		}
+
+		resource "redshift_user" "group_update_user3" {
+			name = %[3]q
+		  }
+		
+		resource "redshift_group" "update_group" {
+		  name = %[4]q
+		  users = [
+			redshift_user.group_update_user1.name,
+			redshift_user.group_update_user2.name,
+			redshift_user.group_update_user3.name,
+		  ]
+		}
+		`, userName1, userName2, userName3, groupNameUpdated)
+		resource.Test(t, resource.TestCase{
+			PreCheck:     func() { testAccPreCheck(t) },
+			Providers:    testAccProviders,
+			CheckDestroy: testAccCheckRedshiftGroupDestroy,
+			Steps: []resource.TestStep{
+				{
+					Config: configCreate,
+					Check: resource.ComposeTestCheckFunc(
+						testAccCheckRedshiftGroupExists(groupName),
+						resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupName)),
+						resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "0"),
+					),
+				},
+				{
+					Config: configUpdate,
+					Check: resource.ComposeTestCheckFunc(
+						testAccCheckRedshiftGroupExists(groupNameUpdated),
+						resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupNameUpdated)),
+						resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "3"),
+						resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName1),
+						resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName2),
+						resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName3),
+					),
+				},
+				// apply the first one again to check if all parameters roll back properly
+				{
+					Config: configCreate,
+					Check: resource.ComposeTestCheckFunc(
+						testAccCheckRedshiftGroupExists(groupName),
+						resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupName)),
+						resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "0"),
+					),
+				},
+			},
+		})
+	}
+}
+
+func TestAccRedshiftGroup_RemoveExistingUser(t *testing.T) {
+	groupName := strings.ReplaceAll(acctest.RandomWithPrefix("TF_acc_group"), "-", "_")
 	userName1 := strings.ReplaceAll(acctest.RandomWithPrefix("TF_Acc_Group_User"), "-", "_")
 	userName2 := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group_user"), "-", "_")
+
 	configCreate := fmt.Sprintf(`
-resource "redshift_group" "update_group" {
-  name = %[1]q
-}
-`, groupName)
-
-	configUpdate := fmt.Sprintf(`
-resource "redshift_user" "group_update_user1" {
-  name = %[1]q
-}
-
-resource "redshift_user" "group_update_user2" {
-  name = %[2]q
-}
-
-resource "redshift_group" "update_group" {
-  name = %[3]q
+resource "redshift_group" "group" {
+  name  = %[1]q
   users = [
-    redshift_user.group_update_user1.name,
-    redshift_user.group_update_user2.name,
+	redshift_user.user1.name,
+	redshift_user.user2.name,
   ]
 }
-`, userName1, userName2, groupNameUpdated)
+
+resource "redshift_user" "user1" {
+	name = %[2]q
+}
+  
+resource "redshift_user" "user2" {
+name = %[3]q
+}
+`, groupName, userName1, userName2)
+
+	configUpdate := fmt.Sprintf(`
+resource "redshift_group" "group" {
+	name  = %[1]q
+	users = [
+		redshift_user.user1.name
+	]
+}
+
+resource "redshift_user" "user1" {
+	name = %[2]q
+}
+
+resource "redshift_user" "user2" {
+	name = %[3]q
+}
+`, groupName, userName1, userName2)
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -76,27 +171,19 @@ resource "redshift_group" "update_group" {
 				Config: configCreate,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRedshiftGroupExists(groupName),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupName)),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "0"),
+					resource.TestCheckResourceAttr("redshift_group.group", "name", strings.ToLower(groupName)),
+					resource.TestCheckResourceAttr("redshift_group.group", "users.#", "2"),
+					resource.TestCheckTypeSetElemAttr("redshift_group.group", "users.*", userName1),
+					resource.TestCheckTypeSetElemAttr("redshift_group.group", "users.*", userName2),
 				),
 			},
 			{
 				Config: configUpdate,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRedshiftGroupExists(groupNameUpdated),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupNameUpdated)),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "2"),
-					resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName1),
-					resource.TestCheckTypeSetElemAttr("redshift_group.update_group", "users.*", userName2),
-				),
-			},
-			// apply the first one again to check if all parameters roll back properly
-			{
-				Config: configCreate,
-				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRedshiftGroupExists(groupName),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "name", strings.ToLower(groupName)),
-					resource.TestCheckResourceAttr("redshift_group.update_group", "users.#", "0"),
+					resource.TestCheckResourceAttr("redshift_group.group", "name", strings.ToLower(groupName)),
+					resource.TestCheckResourceAttr("redshift_group.group", "users.#", "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_group.group", "users.*", userName1),
 				),
 			},
 		},

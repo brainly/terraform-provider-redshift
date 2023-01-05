@@ -1,5 +1,47 @@
 # Changelog
 
+## [v1.0.4](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.4) (2022-12-28)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.3...v1.0.4)
+
+**Merged pull requests:**
+
+- Fix userSessionTimeoutAttr condition [\#102](https://github.com/brainly/terraform-provider-redshift/pull/102) ([robertomczak](https://github.com/robertomczak))
+- Add SESSION TIMEOUT support and missing defer rows.Close\(\) [\#101](https://github.com/brainly/terraform-provider-redshift/pull/101) ([robertomczak](https://github.com/robertomczak))
+
+## [v1.0.3](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.3) (2022-11-15)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.2...v1.0.3)
+
+**Fixed bugs:**
+
+- Non-idempotent reapplying grants for entities with ascii chars 33-126 in their names [\#94](https://github.com/brainly/terraform-provider-redshift/issues/94)
+
+**Closed issues:**
+
+- Error when remove user from group [\#83](https://github.com/brainly/terraform-provider-redshift/issues/83)
+
+**Merged pull requests:**
+
+- Fix - preventing from non-idempotent reapplying grants for entities with ascii chars 33-126 in their names [\#93](https://github.com/brainly/terraform-provider-redshift/pull/93) ([rg00d](https://github.com/rg00d))
+- Improve docs for redshift\_datashare\_privilege resource [\#77](https://github.com/brainly/terraform-provider-redshift/pull/77) ([szemek](https://github.com/szemek))
+
+## [v1.0.2](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.2) (2022-09-02)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.1...v1.0.2)
+
+**Fixed bugs:**
+
+- Fix removing existing users from groups [\#81](https://github.com/brainly/terraform-provider-redshift/pull/81) ([winglot](https://github.com/winglot))
+
+## [v1.0.1](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.1) (2022-08-04)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.0...v1.0.1)
+
+**Fixed bugs:**
+
+- Fix readSchemaGrants and readTableGrants for groups [\#76](https://github.com/brainly/terraform-provider-redshift/pull/76) ([olivermeyer](https://github.com/olivermeyer))
+
 ## [v1.0.0](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.0) (2022-04-22)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v0.6.0...v1.0.0)

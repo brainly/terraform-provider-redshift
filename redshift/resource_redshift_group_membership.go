@@ -65,16 +65,19 @@ func resourceRedshiftGroupMembershipReadImpl(db *DBConnection, d *schema.Resourc
 
 	sql := `SELECT ARRAY(SELECT u.usename FROM pg_user_info u, pg_group g WHERE g.grosysid = $1 AND u.usesysid = ANY(g.grolist)) AS members, groname FROM pg_group WHERE grosysid = $1`
 	if err := db.QueryRow(sql, d.Id()).Scan(pq.Array(&groupUsers), &groupName); err != nil {
-		sql = fmt.Sprintf("%s : $1=%s", sql, d.Id())
-		return fmt.Errorf("Error running SQL query (%s): %w", sql, err)
+		if strings.Contains(err.Error(), "no rows in result set") {
+			d.SetId("")
+		} else {
+			sql = fmt.Sprintf("%s : $1=%s", sql, d.Id())
+			return fmt.Errorf("Error running SQL query (%s): %w", sql, err)
+		}
+	} else {
+		d.Set(groupMembershipNameAttr, groupName)
+		d.Set(groupMembershipUsersAttr, groupUsers)
 	}
-
-	d.Set(groupMembershipNameAttr, groupName)
-	d.Set(groupMembershipUsersAttr, groupUsers)
 
 	return nil
 }
-
 
 func resourceRedshiftGroupMembershipUpdate(db *DBConnection, d *schema.ResourceData) error {
 	tx, err := startTransaction(db.client, "")
@@ -82,7 +85,6 @@ func resourceRedshiftGroupMembershipUpdate(db *DBConnection, d *schema.ResourceD
 		return err
 	}
 	defer deferredRollback(tx)
-
 
 	if err := updateMemberUsersNames(tx, db, d); err != nil {
 		return err

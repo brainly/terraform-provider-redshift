@@ -1,8 +1,21 @@
 # Changelog
 
-## [v1.0.2-1](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.2-1) (2022-09-28)
+## [v1.0.4](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.4) (2022-12-28)
 
-[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.2...v1.0.2-1)
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.3...v1.0.4)
+
+**Merged pull requests:**
+
+- Fix userSessionTimeoutAttr condition [\#102](https://github.com/brainly/terraform-provider-redshift/pull/102) ([robertomczak](https://github.com/robertomczak))
+- Add SESSION TIMEOUT support and missing defer rows.Close\(\) [\#101](https://github.com/brainly/terraform-provider-redshift/pull/101) ([robertomczak](https://github.com/robertomczak))
+
+## [v1.0.3](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.3) (2022-11-15)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.2...v1.0.3)
+
+**Fixed bugs:**
+
+- Non-idempotent reapplying grants for entities with ascii chars 33-126 in their names [\#94](https://github.com/brainly/terraform-provider-redshift/issues/94)
 
 **Closed issues:**
 
@@ -10,6 +23,7 @@
 
 **Merged pull requests:**
 
+- Fix - preventing from non-idempotent reapplying grants for entities with ascii chars 33-126 in their names [\#93](https://github.com/brainly/terraform-provider-redshift/pull/93) ([rg00d](https://github.com/rg00d))
 - Improve docs for redshift\_datashare\_privilege resource [\#77](https://github.com/brainly/terraform-provider-redshift/pull/77) ([szemek](https://github.com/szemek))
 
 ## [v1.0.2](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.2) (2022-09-02)
@@ -87,7 +101,7 @@
 
 **Merged pull requests:**
 
-- Fix typo in code - wrong variable referenced [\#48](https://github.com/brainly/terraform-provider-redshift/pull/48) ([matokovacik](https://github.com/matokovacik))
+- added import docs and warning to privilege description [\#41](https://github.com/brainly/terraform-provider-redshift/pull/41) ([mtesch-um](https://github.com/mtesch-um))
 
 ## [v0.5.2](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.2) (2022-01-26)
 
@@ -95,9 +109,10 @@
 
 **Merged pull requests:**
 
+- Fix typo in code - wrong variable referenced [\#48](https://github.com/brainly/terraform-provider-redshift/pull/48) ([matokovacik](https://github.com/matokovacik))
 - Remove CASCADE from ALTER DEFAULT when dropping users and groups [\#47](https://github.com/brainly/terraform-provider-redshift/pull/47) ([winglot](https://github.com/winglot))
 - Move the superuser/password validation to CustomizeDiff func [\#44](https://github.com/brainly/terraform-provider-redshift/pull/44) ([winglot](https://github.com/winglot))
-- added import docs and warning to privilege description [\#41](https://github.com/brainly/terraform-provider-redshift/pull/41) ([mtesch-um](https://github.com/mtesch-um))
+- Require password for superuser at plan phase [\#39](https://github.com/brainly/terraform-provider-redshift/pull/39) ([winglot](https://github.com/winglot))
 
 ## [v0.5.1](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.1) (2021-12-30)
 
@@ -110,7 +125,6 @@
 **Merged pull requests:**
 
 - Deprecate redshift\_privilege resource [\#40](https://github.com/brainly/terraform-provider-redshift/pull/40) ([winglot](https://github.com/winglot))
-- Require password for superuser at plan phase [\#39](https://github.com/brainly/terraform-provider-redshift/pull/39) ([winglot](https://github.com/winglot))
 
 ## [v0.5.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.0) (2021-12-10)
 

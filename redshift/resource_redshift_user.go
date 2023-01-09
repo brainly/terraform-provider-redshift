@@ -16,13 +16,14 @@ import (
 )
 
 const (
-	userNameAttr         = "name"
-	userPasswordAttr     = "password"
-	userValidUntilAttr   = "valid_until"
-	userCreateDBAttr     = "create_database"
-	userConnLimitAttr    = "connection_limit"
-	userSyslogAccessAttr = "syslog_access"
-	userSuperuserAttr    = "superuser"
+	userNameAttr           = "name"
+	userPasswordAttr       = "password"
+	userValidUntilAttr     = "valid_until"
+	userCreateDBAttr       = "create_database"
+	userConnLimitAttr      = "connection_limit"
+	userSyslogAccessAttr   = "syslog_access"
+	userSuperuserAttr      = "superuser"
+	userSessionTimeoutAttr = "session_timeout"
 
 	// defaults
 	defaultUserSyslogAccess          = "RESTRICTED"
@@ -123,6 +124,13 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 				Default:       false,
 				Description:   `Determine whether the user is a superuser with all database privileges.`,
 			},
+			userSessionTimeoutAttr: {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Default:      0,
+				Description:  "The maximum time in seconds that a session remains inactive or idle. The range is 60 seconds (one minute) to 1,728,000 seconds (20 days). If no session timeout is set for the user, the cluster setting applies.",
+				ValidateFunc: validation.All(validation.IntAtLeast(60), validation.IntAtMost(1728000)),
+			},
 		},
 	}
 }
@@ -162,6 +170,7 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 		sqlKey string
 	}{
 		{userConnLimitAttr, "CONNECTION LIMIT"},
+		{userSessionTimeoutAttr, "SESSION TIMEOUT"},
 	}
 
 	boolOpts := []struct {
@@ -215,7 +224,11 @@ func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error 
 
 	for _, opt := range intOpts {
 		val := d.Get(opt.hclKey).(int)
-		createOpts = append(createOpts, fmt.Sprintf("%s %d", opt.sqlKey, val))
+		if opt.hclKey == userSessionTimeoutAttr && val != 0 {
+			createOpts = append(createOpts, fmt.Sprintf("%s %d", opt.sqlKey, val))
+		} else if opt.hclKey != userSessionTimeoutAttr {
+			createOpts = append(createOpts, fmt.Sprintf("%s %d", opt.sqlKey, val))
+		}
 	}
 
 	for _, opt := range boolOpts {
@@ -253,7 +266,7 @@ func resourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error {
 }
 
 func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) error {
-	var userName, userValidUntil, userConnLimit, userSyslogAccess string
+	var userName, userValidUntil, userConnLimit, userSyslogAccess, userSessionTimeout string
 	var userSuperuser, userCreateDB bool
 
 	columns := []string{
@@ -262,6 +275,7 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 		"usesuper",
 		"syslogaccess",
 		`COALESCE(useconnlimit::TEXT, 'UNLIMITED')`,
+		"sessiontimeout",
 	}
 
 	values := []interface{}{
@@ -270,6 +284,7 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 		&userSuperuser,
 		&userSyslogAccess,
 		&userConnLimit,
+		&userSessionTimeout,
 	}
 
 	useSysID := d.Id()
@@ -301,12 +316,18 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 		}
 	}
 
+	userSessionTimeoutNumber, err := strconv.Atoi(userSessionTimeout)
+	if err != nil {
+		return err
+	}
+
 	d.Set(userNameAttr, userName)
 	d.Set(userCreateDBAttr, userCreateDB)
 	d.Set(userSuperuserAttr, userSuperuser)
 	d.Set(userSyslogAccessAttr, userSyslogAccess)
 	d.Set(userConnLimitAttr, userConnLimitNumber)
 	d.Set(userValidUntilAttr, userValidUntil)
+	d.Set(userSessionTimeoutAttr, userSessionTimeoutNumber)
 
 	return nil
 }
@@ -451,6 +472,10 @@ func resourceRedshiftUserUpdate(db *DBConnection, d *schema.ResourceData) error 
 		return err
 	}
 
+	if err := setUserSessionTimeout(tx, d); err != nil {
+		return err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("could not commit transaction: %w", err)
 	}
@@ -509,6 +534,26 @@ func setUserConnLimit(tx *sql.Tx, d *schema.ResourceData) error {
 	sql := fmt.Sprintf("ALTER USER %s CONNECTION LIMIT %d", pq.QuoteIdentifier(userName), connLimit)
 	if _, err := tx.Exec(sql); err != nil {
 		return fmt.Errorf("Error updating user CONNECTION LIMIT: %w", err)
+	}
+
+	return nil
+}
+
+func setUserSessionTimeout(tx *sql.Tx, d *schema.ResourceData) error {
+	if !d.HasChange(userSessionTimeoutAttr) {
+		return nil
+	}
+
+	sessionTimeout := d.Get(userSessionTimeoutAttr).(int)
+	userName := d.Get(userNameAttr).(string)
+	sql := ""
+	if sessionTimeout == 0 {
+		sql = fmt.Sprintf("ALTER USER %s RESET SESSION TIMEOUT", pq.QuoteIdentifier(userName))
+	} else {
+		sql = fmt.Sprintf("ALTER USER %s SESSION TIMEOUT %d", pq.QuoteIdentifier(userName), sessionTimeout)
+	}
+	if _, err := tx.Exec(sql); err != nil {
+		return fmt.Errorf("Error updating user SESSION TIMEOUT: %w", err)
 	}
 
 	return nil

@@ -26,6 +26,7 @@ func TestAccDataSourceRedshiftUser_Basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.redshift_user.simple", userConnLimitAttr),
 					resource.TestCheckResourceAttrSet("data.redshift_user.simple", userSyslogAccessAttr),
 					resource.TestCheckResourceAttrSet("data.redshift_user.simple", userSuperuserAttr),
+					resource.TestCheckResourceAttrSet("data.redshift_user.simple", userSessionTimeoutAttr),
 				),
 			},
 		},

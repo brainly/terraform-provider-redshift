@@ -39,6 +39,7 @@ func TestAccRedshiftUser_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "password", ""),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "valid_until", "infinity"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "syslog_access", "RESTRICTED"),
+					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "session_timeout", "0"),
 
 					testAccCheckRedshiftUserExists("user_create_database"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_create_database", "name", "user_create_database"),
@@ -51,6 +52,10 @@ func TestAccRedshiftUser_Basic(t *testing.T) {
 					testAccCheckRedshiftUserExists("user_superuser"),
 					resource.TestCheckResourceAttr("redshift_user.user_superuser", "name", "user_superuser"),
 					resource.TestCheckResourceAttr("redshift_user.user_superuser", "superuser", "true"),
+
+					testAccCheckRedshiftUserExists("user_timeout"),
+					resource.TestCheckResourceAttr("redshift_user.user_timeout", "name", "user_timeout"),
+					resource.TestCheckResourceAttr("redshift_user.user_timeout", "session_timeout", "60"),
 				),
 			},
 		},
@@ -374,6 +379,12 @@ resource "redshift_user" "user_superuser" {
   name = "user_superuser"
   superuser = true
   password = "FooBarBaz123"
+}
+
+resource "redshift_user" "user_timeout" {
+  name = "user_timeout"
+  password = "FooBarBaz123"
+  session_timeout = 60
 }
 `
 

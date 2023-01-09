@@ -33,7 +33,7 @@ resource "redshift_default_privileges" "user" {
 
 ### Required
 
-- **object_type** (String) The Redshift object type to set the default privileges on (one of: table).
+- **object_type** (String) The Redshift object type to set the default privileges on (one of: table, function, procedure).
 - **owner** (String) The name of the user for which default privileges are defined. Only a superuser can specify default privileges for other users.
 - **privileges** (Set of String) The list of privileges to apply as default privileges. See [ALTER DEFAULT PRIVILEGES command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_DEFAULT_PRIVILEGES.html) to see what privileges are available to which object type.
 

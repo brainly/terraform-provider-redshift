@@ -101,7 +101,7 @@
 
 **Merged pull requests:**
 
-- added import docs and warning to privilege description [\#41](https://github.com/brainly/terraform-provider-redshift/pull/41) ([mtesch-um](https://github.com/mtesch-um))
+- Fix typo in code - wrong variable referenced [\#48](https://github.com/brainly/terraform-provider-redshift/pull/48) ([matokovacik](https://github.com/matokovacik))
 
 ## [v0.5.2](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.2) (2022-01-26)
 
@@ -109,10 +109,9 @@
 
 **Merged pull requests:**
 
-- Fix typo in code - wrong variable referenced [\#48](https://github.com/brainly/terraform-provider-redshift/pull/48) ([matokovacik](https://github.com/matokovacik))
 - Remove CASCADE from ALTER DEFAULT when dropping users and groups [\#47](https://github.com/brainly/terraform-provider-redshift/pull/47) ([winglot](https://github.com/winglot))
 - Move the superuser/password validation to CustomizeDiff func [\#44](https://github.com/brainly/terraform-provider-redshift/pull/44) ([winglot](https://github.com/winglot))
-- Require password for superuser at plan phase [\#39](https://github.com/brainly/terraform-provider-redshift/pull/39) ([winglot](https://github.com/winglot))
+- added import docs and warning to privilege description [\#41](https://github.com/brainly/terraform-provider-redshift/pull/41) ([mtesch-um](https://github.com/mtesch-um))
 
 ## [v0.5.1](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.1) (2021-12-30)
 
@@ -125,6 +124,7 @@
 **Merged pull requests:**
 
 - Deprecate redshift\_privilege resource [\#40](https://github.com/brainly/terraform-provider-redshift/pull/40) ([winglot](https://github.com/winglot))
+- Require password for superuser at plan phase [\#39](https://github.com/brainly/terraform-provider-redshift/pull/39) ([winglot](https://github.com/winglot))
 
 ## [v0.5.0](https://github.com/brainly/terraform-provider-redshift/tree/v0.5.0) (2021-12-10)
 

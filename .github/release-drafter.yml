@@ -1,0 +1,79 @@
+# This configuration manages Release Drafter
+#
+# For more information, see:
+# https://github.com/release-drafter/release-drafter
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+version-template: '$MAJOR.$MINOR.$PATCH'
+category-template: '### $TITLE'
+
+version-resolver:
+  major:
+    labels:
+      - 'semver:major'
+      - 'major'
+  minor:
+    labels:
+      - 'semver:minor'
+      - 'minor'
+      - 'enhancement'
+      - 'documentation'
+      - 'chore'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'hotfix'
+  default: 'minor'
+
+categories:
+  - title: '🚀 Enhancements'
+    labels:
+      - 'enhancement'
+      - 'features'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'hotfix'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'documentation'
+      - 'chore'
+
+exclude-labels:
+  - 'skip-changelog'
+
+autolabeler:
+  - label: 'documentation'
+    files:
+      - '*.md'
+  - label: 'bug'
+    branch:
+      - '/fix\/.+/'
+    title:
+      - '/fix/i'
+    body:
+      - '/DH-[0-9]{1,4}/'
+      - '/fix/'
+  - label: 'enhancement'
+    branch:
+      - '/feature\/.+/'
+    body:
+      - '/DEVOPS-[0-9]{1,4}/'
+
+change-template: |
+  <details>
+    <summary>$TITLE @$AUTHOR (#$NUMBER)</summary>
+
+    $BODY
+  </details>
+
+template: |
+  ## What’s Changed
+
+  $CHANGES

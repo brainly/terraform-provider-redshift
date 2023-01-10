@@ -1,0 +1,17 @@
+# This configuration manages PRs labeler
+#
+# For more information, see:
+# https://github.com/actions/labeler
+
+enhancement:
+  - any: ['modules/**/*.tf']
+
+tests:
+  - any: ['examples/**/*.tf']
+
+documentation:
+  - any: ['**/*.md']
+
+chore:
+  - any: ['./*']
+  - any: ['.github/**']

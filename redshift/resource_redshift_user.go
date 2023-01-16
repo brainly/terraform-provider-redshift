@@ -54,15 +54,21 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 		),
 		Exists: RedshiftResourceExistsFunc(resourceRedshiftUserExists),
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, p interface{}) error {
 			isSuperuser := d.Get(userSuperuserAttr).(bool)
-			isPasswordKnown := d.NewValueKnown(userPasswordAttr)
 
+			isPasswordKnown := d.NewValueKnown(userPasswordAttr)
 			password, hasPassword := d.GetOk(userPasswordAttr)
 			if isSuperuser && isPasswordKnown && (!hasPassword || password.(string) == "") {
 				return fmt.Errorf("Users that are superusers must define a password.")
+			}
+
+			isSyslogAccessKnown := d.NewValueKnown(userSyslogAccessAttr)
+			syslogAccess, hasSyslogAccess := d.GetOk(userSyslogAccessAttr)
+			if isSuperuser && isSyslogAccessKnown && hasSyslogAccess && syslogAccess != defaultUserSuperuserSyslogAccess {
+				return fmt.Errorf("Superusers must have syslog access set to %s.", defaultUserSuperuserSyslogAccess)
 			}
 
 			return nil
@@ -118,11 +124,10 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 				},
 			},
 			userSuperuserAttr: {
-				ConflictsWith: []string{userSyslogAccessAttr},
-				Type:          schema.TypeBool,
-				Optional:      true,
-				Default:       false,
-				Description:   `Determine whether the user is a superuser with all database privileges.`,
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: `Determine whether the user is a superuser with all database privileges.`,
 			},
 			userSessionTimeoutAttr: {
 				Type:         schema.TypeInt,

@@ -234,6 +234,63 @@ resource "redshift_user" "superuser" {
 	})
 }
 
+func TestAccRedshiftUser_SuperuserSyslogAccess(t *testing.T) {
+	tests := map[string]struct {
+		isSuperuser  bool
+		syslogAccess string
+		expectError  *regexp.Regexp
+	}{
+		"(not superuser) UNRESTRICTED syslog access": {
+			isSuperuser:  false,
+			syslogAccess: defaultUserSuperuserSyslogAccess,
+		},
+		"(not superuser) RESTRICTED syslog access": {
+			isSuperuser:  false,
+			syslogAccess: defaultUserSyslogAccess,
+		},
+		"(superuser) RESTRICTED syslog access": {
+			isSuperuser:  true,
+			syslogAccess: defaultUserSyslogAccess,
+			expectError:  regexp.MustCompile("Superusers must have syslog access set to UNRESTRICTED."),
+		},
+		"(superuser) UNRESTRICTED syslog access": {
+			isSuperuser:  true,
+			syslogAccess: defaultUserSuperuserSyslogAccess,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_superuser"), "-", "_")
+			config := fmt.Sprintf(`
+			locals {
+				is_superuser = %[2]t
+			}
+
+			resource "redshift_user" "superuser" {
+			  name = %[1]q
+			  superuser = local.is_superuser
+			  password  = "foobar12355#"
+			  syslog_access = %[3]q
+			}
+			`, userName, test.isSuperuser, test.syslogAccess)
+
+			resource.Test(t, resource.TestCase{
+				PreCheck:     func() { testAccPreCheck(t) },
+				Providers:    testAccProviders,
+				CheckDestroy: testAccCheckRedshiftUserDestroy,
+				Steps: []resource.TestStep{
+					{
+						Config:      config,
+						ExpectError: test.expectError,
+					},
+				},
+			})
+		})
+	}
+
+}
+
 func TestAccRedshiftUser_SuperuserUnknownPassword(t *testing.T) {
 	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_superuser"), "-", "_")
 	config := fmt.Sprintf(`

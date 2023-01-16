@@ -52,12 +52,17 @@ This data source can be used to fetch information about a specific database user
 				Computed:    true,
 				Description: `Indicates whether the user is a superuser with all database privileges.`,
 			},
+			userSessionTimeoutAttr: {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: "The maximum time in seconds that a session remains inactive or idle. The range is 60 seconds (one minute) to 1,728,000 seconds (20 days). If no session timeout is set for the user, the cluster setting applies.",
+			},
 		},
 	}
 }
 
 func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error {
-	var useSysID, userValidUntil, userConnLimit, userSyslogAccess string
+	var useSysID, userValidUntil, userConnLimit, userSyslogAccess, userSessionTimeout string
 	var userSuperuser, userCreateDB bool
 
 	columns := []string{
@@ -66,6 +71,7 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 		"usesuper",
 		"syslogaccess",
 		`COALESCE(useconnlimit::TEXT, 'UNLIMITED')`,
+		"sessiontimeout",
 	}
 
 	values := []interface{}{
@@ -74,6 +80,7 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 		&userSuperuser,
 		&userSyslogAccess,
 		&userConnLimit,
+		&userSessionTimeout,
 	}
 
 	userName := d.Get(userNameAttr).(string)
@@ -96,12 +103,18 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 		}
 	}
 
+	userSessionTimeoutNumber, err := strconv.Atoi(userSessionTimeout)
+	if err != nil {
+		return err
+	}
+
 	d.SetId(useSysID)
 	d.Set(userCreateDBAttr, userCreateDB)
 	d.Set(userSuperuserAttr, userSuperuser)
 	d.Set(userSyslogAccessAttr, userSyslogAccess)
 	d.Set(userConnLimitAttr, userConnLimitNumber)
 	d.Set(userValidUntilAttr, userValidUntil)
+	d.Set(userSessionTimeoutAttr, userSessionTimeoutNumber)
 
 	return nil
 }

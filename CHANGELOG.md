@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.0.4](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.4) (2022-12-28)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.3...v1.0.4)
+
+**Merged pull requests:**
+
+- Fix userSessionTimeoutAttr condition [\#102](https://github.com/brainly/terraform-provider-redshift/pull/102) ([robertomczak](https://github.com/robertomczak))
+- Add SESSION TIMEOUT support and missing defer rows.Close\(\) [\#101](https://github.com/brainly/terraform-provider-redshift/pull/101) ([robertomczak](https://github.com/robertomczak))
+
 ## [v1.0.3](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.3) (2022-11-15)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.2...v1.0.3)

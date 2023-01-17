@@ -86,7 +86,7 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Sets the user's password. Users can change their own passwords, unless the password is disabled. To disable password, omit this parameter or set it to `null`.",
+				Description: "Sets the user's password. Users can change their own passwords, unless the password is disabled. To disable password, omit this parameter or set it to `null`. Can also be a hashed password rather than the plaintext password. Please refer to the Redshift [CREATE USER documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_USER.html) for information on creating a password hash.",
 			},
 			userValidUntilAttr: {
 				Type:        schema.TypeString,

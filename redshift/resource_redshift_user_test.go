@@ -31,6 +31,9 @@ func TestAccRedshiftUser_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("redshift_user.with_email", "name", "John-and-Jane.doe@example.com"),
 					testAccCheckRedshiftUserCanLogin("John-and-Jane.doe@example.com", "Foobarbaz1"),
 
+					testAccCheckRedshiftUserExists("hashed_password"),
+					testAccCheckRedshiftUserCanLogin("hashed_password", "Foobarbaz2"),
+
 					testAccCheckRedshiftUserExists("user_defaults"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "name", "user_defaults"),
 					resource.TestCheckResourceAttr("redshift_user.user_with_defaults", "superuser", "false"),
@@ -81,6 +84,15 @@ resource "redshift_user" "update_user" {
   create_database = true
 }
 `
+	var configUpdate2 = `
+resource "redshift_user" "update_user" {
+  name = "update_user2"
+  connection_limit = 5
+  password = "md508d5d11f1f947091b312fb36b25e621f"
+  syslog_access = "UNRESTRICTED"
+  create_database = true
+}
+`
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -110,6 +122,14 @@ resource "redshift_user" "update_user" {
 					resource.TestCheckResourceAttr("redshift_user.update_user", "valid_until", "infinity"),
 					resource.TestCheckResourceAttr("redshift_user.update_user", "syslog_access", "UNRESTRICTED"),
 					resource.TestCheckResourceAttr("redshift_user.update_user", "create_database", "true"),
+				),
+			},
+			{
+				Config: configUpdate2,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedshiftUserExists("update_user2"),
+					testAccCheckRedshiftUserCanLogin("update_user2", "Foobarbaz6"),
+					resource.TestCheckResourceAttr("redshift_user.update_user", "password", "md508d5d11f1f947091b312fb36b25e621f"),
 				),
 			},
 			// apply the first one again to check if all parameters roll back properly
@@ -411,6 +431,11 @@ resource "redshift_user" "simple" {
 resource "redshift_user" "with_email" {
   name = "John-and-Jane.doe@example.com"
   password = "Foobarbaz1"
+}
+
+resource "redshift_user" "with_hashed_password" {
+  name = "hashed_password"
+  password = "md5ad3b897bab2474bc7e408326cb18c42f"
 }
 
 resource "redshift_user" "user_with_defaults" {

@@ -11,6 +11,97 @@ import (
 	"github.com/lib/pq"
 )
 
+func TestAccRedshiftGrant_SchemaToPublic(t *testing.T) {
+	schemaName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_schema"), "-", "_")
+	config := fmt.Sprintf(`
+resource "redshift_schema" "test" {
+	name = %[1]q
+}
+
+resource "redshift_grant" "public" {
+	group = "public"
+
+	schema = %[1]q
+	object_type = "schema"
+	privileges  = ["create", "usage"]
+}
+`, schemaName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: func(s *terraform.State) error { return nil },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("redshift_grant.public", "id", fmt.Sprintf("gn:public_ot:schema_%s", schemaName)),
+					resource.TestCheckResourceAttr("redshift_grant.public", "group", "public"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "object_type", "schema"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "privileges.#", "2"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "create"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "usage"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccRedshiftGrant_DatabaseToPublic(t *testing.T) {
+	config := `
+resource "redshift_grant" "public" {
+	group = "public"
+	object_type = "database"
+	privileges = ["temporary"]
+}
+`
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: func(s *terraform.State) error { return nil },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("redshift_grant.public", "id", "gn:public_ot:database"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "group", "public"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "object_type", "database"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "privileges.#", "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "temporary"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccRedshiftGrant_LanguageToPublic(t *testing.T) {
+	config := `
+resource "redshift_grant" "public" {
+	group = "public"
+	object_type = "language"
+	objects = ["plpythonu"]
+	privileges = ["usage"]
+}
+`
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: func(s *terraform.State) error { return nil },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("redshift_grant.public", "id", "gn:public_ot:language_plpythonu"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "group", "public"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "object_type", "language"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "privileges.#", "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "usage"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccRedshiftGrant_BasicDatabase(t *testing.T) {
 	groupNames := []string{
 		strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group"), "-", "_"),

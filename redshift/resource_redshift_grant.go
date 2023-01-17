@@ -18,6 +18,8 @@ const (
 	grantObjectTypeAttr = "object_type"
 	grantObjectsAttr    = "objects"
 	grantPrivilegesAttr = "privileges"
+
+	grantToPublicName = "public"
 )
 
 var grantAllowedObjectTypes = []string{
@@ -230,7 +232,22 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 `
 	}
 
-	if err := db.QueryRow(query, db.client.databaseName, entityName).Scan(&databaseCreate, &databaseTemp); err != nil {
+	queryArgs := []interface{}{db.client.databaseName, entityName}
+
+	// Handle GRANT TO PUBLIC
+	if entityName == grantToPublicName {
+		query = `
+  SELECT
+    decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
+    decode(charindex('T',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as temporary
+  FROM pg_database db
+  WHERE
+    db.datname=$1 
+`
+		queryArgs = []interface{}{db.client.databaseName}
+	}
+
+	if err := db.QueryRow(query, queryArgs...).Scan(&databaseCreate, &databaseTemp); err != nil {
 		return err
 	}
 
@@ -255,14 +272,14 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	if isUser {
 		entityName = d.Get(grantUserAttr).(string)
 		query = `
-  SELECT
-    decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
-    decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage
-  FROM pg_namespace ns, pg_user u
-  WHERE
-    ns.nspname=$1 
-    AND u.usename=$2
-`
+	SELECT
+		decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
+		decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage
+	FROM pg_namespace ns, pg_user u
+	WHERE
+		ns.nspname=$1 
+		AND u.usename=$2
+	`
 	} else {
 		entityName = d.Get(grantGroupAttr).(string)
 		query = `
@@ -276,7 +293,22 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 `
 	}
 
-	if err := db.QueryRow(query, schemaName, entityName).Scan(&schemaCreate, &schemaUsage); err != nil {
+	queryArgs := []interface{}{schemaName, entityName}
+
+	// Handle GRANT TO PUBLIC
+	if entityName == grantToPublicName {
+		query = `
+			SELECT
+				decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
+				decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as usage
+			FROM pg_namespace ns
+			WHERE
+				ns.nspname=$1
+			`
+		queryArgs = []interface{}{schemaName}
+	}
+
+	if err := db.QueryRow(query, queryArgs...).Scan(&schemaCreate, &schemaUsage); err != nil {
 		return err
 	}
 
@@ -284,7 +316,7 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	appendIfTrue(schemaCreate, "create", &privileges)
 	appendIfTrue(schemaUsage, "usage", &privileges)
 
-	log.Printf("[DEBUG] Collected schema '%s' privileges for  %s: %v", schemaName, entityName, privileges)
+	log.Printf("[DEBUG] Collected schema '%s' privileges for %s: %v", schemaName, entityName, privileges)
 
 	d.Set(grantPrivilegesAttr, privileges)
 
@@ -340,8 +372,34 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	schemaName := d.Get(grantSchemaAttr).(string)
 	objects := d.Get(grantObjectsAttr).(*schema.Set)
+	queryArgs := []interface{}{
+		pq.Array(grantObjectTypesCodes["table"]), entityName, schemaName,
+	}
 
-	rows, err := db.Query(query, pq.Array(grantObjectTypesCodes["table"]), entityName, schemaName)
+	if entityName == grantToPublicName {
+		query = `
+		SELECT
+		  relname,
+		  decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as select,
+		  decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as update,
+		  decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as insert,
+		  decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as delete,
+		  decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as drop,
+		  decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as references,
+		  decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as rule,
+		  decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as trigger
+		FROM pg_class cl
+		JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
+		WHERE
+		  cl.relkind = ANY($1)
+		  AND nsp.nspname=$2
+	  `
+		queryArgs = []interface{}{
+			pq.Array(grantObjectTypesCodes["table"]), schemaName,
+		}
+	}
+
+	rows, err := db.Query(query, queryArgs...)
 	if err != nil {
 		return err
 	}
@@ -435,8 +493,27 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 	}
 
 	callables := stripArgumentsFromCallablesDefinitions(d.Get(grantObjectsAttr).(*schema.Set))
+	queryArgs := []interface{}{
+		schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]),
+	}
 
-	rows, err := db.Query(query, schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]))
+	if entityName == grantToPublicName {
+		query = `
+	SELECT
+		proname,
+		decode(nvl(charindex('X',split_part(split_part(regexp_replace(replace(array_to_string(pr.proacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0), 0,0,1) as execute
+	FROM pg_proc_info pr
+		JOIN pg_namespace nsp ON nsp.oid = pr.pronamespace
+	WHERE
+		nsp.nspname=$1 
+		AND pr.prokind=ANY($2)
+`
+		queryArgs = []interface{}{
+			schemaName, pq.Array(grantObjectTypesCodes[objectType]),
+		}
+	}
+
+	rows, err := db.Query(query, queryArgs...)
 	if err != nil {
 		return err
 	}
@@ -505,7 +582,20 @@ func readLanguageGrants(db *DBConnection, d *schema.ResourceData) error {
 `
 	}
 
-	rows, err := db.Query(query, entityName)
+	queryArgs := []interface{}{entityName}
+
+	// Handle GRANT TO PUBLIC
+	if entityName == grantToPublicName {
+		query = `
+		SELECT
+			  lanname,
+		  decode(nvl(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(lg.lanacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0), 0,0,1) as usage
+		FROM pg_language lg
+	  `
+		queryArgs = []interface{}{}
+	}
+
+	rows, err := db.Query(query, queryArgs...)
 	if err != nil {
 		return err
 	}
@@ -567,20 +657,26 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 		entityName = userName.(string)
 	}
 
+	fromEntityName := pq.QuoteIdentifier(entityName)
+	if entityName == grantToPublicName {
+		toWhomIndicator = ""
+		fromEntityName = "PUBLIC"
+	}
+
 	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {
 	case "DATABASE":
 		query = fmt.Sprintf(
 			"REVOKE ALL PRIVILEGES ON DATABASE %s FROM %s %s",
 			pq.QuoteIdentifier(databaseName),
 			toWhomIndicator,
-			pq.QuoteIdentifier(entityName),
+			fromEntityName,
 		)
 	case "SCHEMA":
 		query = fmt.Sprintf(
 			"REVOKE ALL PRIVILEGES ON SCHEMA %s FROM %s %s",
 			pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
 			toWhomIndicator,
-			pq.QuoteIdentifier(entityName),
+			fromEntityName,
 		)
 	case "TABLE":
 		objects := d.Get(grantObjectsAttr).(*schema.Set)
@@ -590,7 +686,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				setToPgIdentList(objects, d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				fromEntityName,
 			)
 		} else {
 			query = fmt.Sprintf(
@@ -598,7 +694,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				fromEntityName,
 			)
 		}
 	case "FUNCTION", "PROCEDURE":
@@ -609,7 +705,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				setToPgIdentListNotQuoted(objects, d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				fromEntityName,
 			)
 		} else {
 			query = fmt.Sprintf(
@@ -617,7 +713,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				fromEntityName,
 			)
 		}
 	case "LANGUAGE":
@@ -626,7 +722,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 			"REVOKE USAGE ON LANGUAGE %s FROM %s %s",
 			setToPgIdentList(objects, ""),
 			toWhomIndicator,
-			pq.QuoteIdentifier(entityName),
+			fromEntityName,
 		)
 	}
 	log.Printf("[DEBUG] Created REVOKE query: %s", query)
@@ -647,6 +743,12 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 		entityName = userName.(string)
 	}
 
+	toEntityName := pq.QuoteIdentifier(entityName)
+	if entityName == grantToPublicName {
+		toWhomIndicator = ""
+		toEntityName = "PUBLIC"
+	}
+
 	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {
 	case "DATABASE":
 		query = fmt.Sprintf(
@@ -654,7 +756,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 			strings.Join(privileges, ","),
 			pq.QuoteIdentifier(databaseName),
 			toWhomIndicator,
-			pq.QuoteIdentifier(entityName),
+			toEntityName,
 		)
 	case "SCHEMA":
 		query = fmt.Sprintf(
@@ -662,7 +764,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 			strings.Join(privileges, ","),
 			pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
 			toWhomIndicator,
-			pq.QuoteIdentifier(entityName),
+			toEntityName,
 		)
 	case "TABLE", "LANGUAGE":
 		objects := d.Get(grantObjectsAttr).(*schema.Set)
@@ -673,7 +775,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				setToPgIdentList(objects, d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				toEntityName,
 			)
 		} else {
 			query = fmt.Sprintf(
@@ -682,7 +784,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				toEntityName,
 			)
 		}
 	case "FUNCTION", "PROCEDURE":
@@ -694,7 +796,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				setToPgIdentListNotQuoted(objects, d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				toEntityName,
 			)
 		} else {
 			query = fmt.Sprintf(
@@ -703,7 +805,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 				strings.ToUpper(d.Get(grantObjectTypeAttr).(string)),
 				pq.QuoteIdentifier(d.Get(grantSchemaAttr).(string)),
 				toWhomIndicator,
-				pq.QuoteIdentifier(entityName),
+				toEntityName,
 			)
 		}
 	}

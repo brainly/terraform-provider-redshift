@@ -102,6 +102,46 @@ resource "redshift_grant" "public" {
 	})
 }
 
+func TestAccRedshiftGrant_TableToPublic(t *testing.T) {
+	config := `
+resource "redshift_grant" "public" {
+	group = "public"
+
+	schema = "pg_catalog"
+	object_type = "table"
+	objects = ["pg_user_info"]
+	privileges = ["select", "update", "insert", "delete", "drop", "references", "rule", "trigger"]
+}
+`
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: func(s *terraform.State) error { return nil },
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("redshift_grant.public", "id", "gn:public_ot:table_pg_catalog_pg_user_info"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "group", "public"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "schema", "pg_catalog"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "object_type", "table"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "objects.#", "1"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "objects.*", "pg_user_info"),
+					resource.TestCheckResourceAttr("redshift_grant.public", "privileges.#", "8"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "select"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "update"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "insert"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "delete"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "drop"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "references"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "rule"),
+					resource.TestCheckTypeSetElemAttr("redshift_grant.public", "privileges.*", "trigger"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccRedshiftGrant_BasicDatabase(t *testing.T) {
 	groupNames := []string{
 		strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_group"), "-", "_"),

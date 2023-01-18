@@ -447,8 +447,9 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 			d.Set(grantPrivilegesAttr, privilegesSet)
 			break
 		}
+
+		log.Printf("[DEBUG] Collected table grants; table: '%v'; privileges: %v; for: %s", objName, privilegesSet.List(), entityName)
 	}
-	log.Printf("[DEBUG] Collected table grants")
 
 	return nil
 }

@@ -68,7 +68,7 @@ Defines access privileges for users and  groups. Privileges include access optio
 				Optional:     true,
 				ForceNew:     true,
 				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
-				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set.",
+				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` will result in a `GRANT ... TO PUBLIC` statement.",
 			},
 			grantSchemaAttr: {
 				Type:        schema.TypeString,

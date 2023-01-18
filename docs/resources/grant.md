@@ -28,13 +28,21 @@ resource "redshift_grant" "group" {
 }
 
 # Granting permissions to execute functions or procedures requires providing their arguments' types
-
 resource "redshift_grant" "user" {
   user        = "john"
   schema      = "my_schema"
   object_type = "function"
   objects     = ["my_function(float)"]
   privileges  = ["execute"]
+}
+
+# Granting permission to PUBLIC (GRANT ... TO PUBLIC)
+resource "redshift_grant" "public" {
+  group = "public" // "public" here indicates we want grant TO PUBLIC, not "public" group.
+
+  schema      = "my_schema"
+  object_type = "schema"
+  privileges  = ["usage"]
 }
 ```
 
@@ -48,7 +56,7 @@ resource "redshift_grant" "user" {
 
 ### Optional
 
-- **group** (String) The name of the group to grant privileges on. Either `group` or `user` parameter must be set.
+- **group** (String) The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` will result in a `GRANT ... TO PUBLIC` statement.
 - **id** (String) The ID of this resource.
 - **objects** (Set of String) The objects upon which to grant the privileges. An empty list (the default) means to grant permissions on all objects of the specified type. Ignored when `object_type` is one of (`database`, `schema`).
 - **schema** (String) The database schema to grant privileges on.

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -62,13 +63,21 @@ Defines access privileges for users and  groups. Privileges include access optio
 				ForceNew:     true,
 				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
 				Description:  "The name of the user to grant privileges on. Either `user` or `group` parameter must be set.",
+				ValidateFunc: validation.StringDoesNotMatch(regexp.MustCompile("^(?i)public$"), "User name cannot be 'public'. To use GRANT ... TO PUBLIC set the group name to 'public' instead."),
 			},
 			grantGroupAttr: {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
 				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
-				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` will result in a `GRANT ... TO PUBLIC` statement.",
+				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` or `PUBLIC` (it is case insensitive in this case) will result in a `GRANT ... TO PUBLIC` statement.",
+				StateFunc: func(val interface{}) string {
+					name := val.(string)
+					if strings.ToLower(name) == grantToPublicName {
+						return strings.ToLower(name)
+					}
+					return name
+				},
 			},
 			grantSchemaAttr: {
 				Type:        schema.TypeString,
@@ -235,7 +244,7 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 	queryArgs := []interface{}{db.client.databaseName, entityName}
 
 	// Handle GRANT TO PUBLIC
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		query = `
   SELECT
     decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
@@ -296,7 +305,7 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	queryArgs := []interface{}{schemaName, entityName}
 
 	// Handle GRANT TO PUBLIC
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		query = `
 			SELECT
 				decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
@@ -376,7 +385,7 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		pq.Array(grantObjectTypesCodes["table"]), entityName, schemaName,
 	}
 
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		query = `
 		SELECT
 		  relname,
@@ -498,7 +507,7 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 		schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]),
 	}
 
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		query = `
 	SELECT
 		proname,
@@ -586,7 +595,7 @@ func readLanguageGrants(db *DBConnection, d *schema.ResourceData) error {
 	queryArgs := []interface{}{entityName}
 
 	// Handle GRANT TO PUBLIC
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		query = `
 		SELECT
 			  lanname,
@@ -659,7 +668,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 	}
 
 	fromEntityName := pq.QuoteIdentifier(entityName)
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		toWhomIndicator = ""
 		fromEntityName = "PUBLIC"
 	}
@@ -745,7 +754,7 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 	}
 
 	toEntityName := pq.QuoteIdentifier(entityName)
-	if entityName == grantToPublicName {
+	if isGrantToPublic(d) {
 		toWhomIndicator = ""
 		toEntityName = "PUBLIC"
 	}
@@ -815,11 +824,26 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 	return query
 }
 
+func isGrantToPublic(d *schema.ResourceData) bool {
+	if _, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		entityName := d.Get(grantGroupAttr).(string)
+
+		return strings.ToLower(entityName) == grantToPublicName
+	}
+
+	return false
+}
+
 func generateGrantID(d *schema.ResourceData) string {
 	parts := []string{}
 
 	if _, isGroup := d.GetOk(grantGroupAttr); isGroup {
-		parts = append(parts, fmt.Sprintf("gn:%s", d.Get(grantGroupAttr).(string)))
+		name := d.Get(grantGroupAttr).(string)
+		if isGrantToPublic(d) {
+			name = strings.ToLower(name)
+		}
+
+		parts = append(parts, fmt.Sprintf("gn:%s", name))
 	}
 
 	if _, isUser := d.GetOk(grantUserAttr); isUser {

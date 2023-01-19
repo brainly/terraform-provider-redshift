@@ -19,7 +19,7 @@ resource "redshift_schema" "test" {
 }
 
 resource "redshift_grant" "public" {
-	group = "public"
+	group = "PUBLIC"
 
 	schema = %[1]q
 	object_type = "schema"

@@ -247,8 +247,8 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 	if isGrantToPublic(d) {
 		query = `
   SELECT
-    decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as temporary
+    decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
+    decode(charindex('T',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as temporary
   FROM pg_database db
   WHERE
     db.datname=$1 
@@ -308,8 +308,8 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	if isGrantToPublic(d) {
 		query = `
 			SELECT
-				decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
-				decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as usage
+				decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
+				decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as usage
 			FROM pg_namespace ns
 			WHERE
 				ns.nspname=$1
@@ -389,14 +389,14 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
 		SELECT
 		  relname,
-		  decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as select,
-		  decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as update,
-		  decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as insert,
-		  decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as delete,
-		  decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as drop,
-		  decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as references,
-		  decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as rule,
-		  decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as trigger
+		  decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as select,
+		  decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as update,
+		  decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as insert,
+		  decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as delete,
+		  decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as drop,
+		  decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as references,
+		  decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as rule,
+		  decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as trigger
 		FROM pg_class cl
 		JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
 		WHERE
@@ -511,7 +511,7 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
 	SELECT
 		proname,
-		decode(nvl(charindex('X',split_part(split_part(regexp_replace(replace(array_to_string(pr.proacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0), 0,0,1) as execute
+		decode(nvl(charindex('X',split_part(split_part(regexp_replace(replace(array_to_string(pr.proacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0), 0,0,1) as execute
 	FROM pg_proc_info pr
 		JOIN pg_namespace nsp ON nsp.oid = pr.pronamespace
 	WHERE
@@ -599,7 +599,7 @@ func readLanguageGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
 		SELECT
 			  lanname,
-		  decode(nvl(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(lg.lanacl, '|'), '"', ''),'[^|+]=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0), 0,0,1) as usage
+		  decode(nvl(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(lg.lanacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0), 0,0,1) as usage
 		FROM pg_language lg
 	  `
 		queryArgs = []interface{}{}

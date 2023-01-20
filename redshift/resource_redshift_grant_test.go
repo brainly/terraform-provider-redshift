@@ -13,6 +13,7 @@ import (
 
 func TestAccRedshiftGrant_SchemaToPublic(t *testing.T) {
 	schemaName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_schema"), "-", "_")
+	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_user"), "-", "_")
 	config := fmt.Sprintf(`
 resource "redshift_schema" "test" {
 	name = %[1]q
@@ -25,7 +26,19 @@ resource "redshift_grant" "public" {
 	object_type = "schema"
 	privileges  = ["create", "usage"]
 }
-`, schemaName)
+
+# Add user with different privileges to see if we do not catch them by accident
+resource "redshift_user" "test" {
+	name = %[2]q
+	password = "Foo123456$"
+}
+resource "redshift_grant" "user" {
+	user = redshift_user.test.name
+	schema = %[1]q
+	object_type = "schema"
+	privileges  = ["usage"]
+}
+`, schemaName, userName)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },

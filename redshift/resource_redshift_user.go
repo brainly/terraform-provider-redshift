@@ -270,28 +270,16 @@ func resourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error {
 }
 
 func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) error {
-	var userName, userValidUntil, userConnLimit, userSyslogAccess, userInfoTable string
+	var userName, userValidUntil, userConnLimit, userSyslogAccess, userSessionTimeout string
 	var userSuperuser, userCreateDB bool
-	var columns []string
 
-	if db.client.config.IsServerless {
-		columns = []string{
-			"usename",
-			"usecreatedb",
-			"usesuper",
-			"'RESTRICTED'",
-			"'UNLIMITED'",
-		}
-		userInfoTable = "pg_user"
-	} else {
-		columns = []string{
-			"usename",
-			"usecreatedb",
-			"usesuper",
-			"syslogaccess",
-			`COALESCE(useconnlimit::TEXT, 'UNLIMITED')`,
-		}
-		userInfoTable = "svl_user_info"
+	columns := []string{
+		"user_name",
+		"createdb",
+		"superuser",
+		"syslog_access",
+		`COALESCE(connection_limit::TEXT, 'UNLIMITED')`,
+		"session_timeout",
 	}
 
 	values := []interface{}{
@@ -300,11 +288,12 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 		&userSuperuser,
 		&userSyslogAccess,
 		&userConnLimit,
+		&userSessionTimeout,
 	}
 
 	useSysID := d.Id()
 
-	userSQL := fmt.Sprintf("SELECT %s FROM %s WHERE usesysid = $1", strings.Join(columns, ","), userInfoTable)
+	userSQL := fmt.Sprintf("SELECT %s FROM svv_user_info WHERE user_id = $1", strings.Join(columns, ","))
 	err := db.QueryRow(userSQL, useSysID).Scan(values...)
 	switch {
 	case err == sql.ErrNoRows:

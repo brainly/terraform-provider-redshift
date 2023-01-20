@@ -450,7 +450,12 @@ func resourceRedshiftSchemaReadImpl(db *DBConnection, d *schema.ResourceData) er
 
 func resourceRedshiftSchemaReadLocal(db *DBConnection, d *schema.ResourceData) error {
 	var schemaQuota int = 0
-	if !db.client.config.IsServerless {
+	isServerless, err := db.client.config.IsServerless(db)
+	if err != nil {
+		return err
+	}
+
+	if !isServerless {
 		err := db.QueryRow(`
 			SELECT
 			COALESCE(quota, 0)
@@ -463,7 +468,7 @@ func resourceRedshiftSchemaReadLocal(db *DBConnection, d *schema.ResourceData) e
 	}
 	d.Set(schemaQuotaAttr, schemaQuota)
 	d.Set(schemaExternalSchemaAttr, nil)
-	
+
 	return nil
 }
 

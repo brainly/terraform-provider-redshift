@@ -1,5 +1,31 @@
 # Changelog
 
+## [v1.1.0](https://github.com/brainly/terraform-provider-redshift/tree/v1.1.0) (2023-01-31)
+
+[Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.4...v1.1.0)
+
+**Implemented enhancements:**
+
+- Allow GRANTs to PUBLIC [\#61](https://github.com/brainly/terraform-provider-redshift/issues/61)
+
+**Fixed bugs:**
+
+- can not set a user password to an md5 string, because it will be re-hashed [\#97](https://github.com/brainly/terraform-provider-redshift/issues/97)
+- Conflicts with syslog\_access and superuser=false [\#95](https://github.com/brainly/terraform-provider-redshift/issues/95)
+
+**Closed issues:**
+
+- Grant same privileges on multiple schemas [\#108](https://github.com/brainly/terraform-provider-redshift/issues/108)
+- Allow TRUNCATE grant for groups on table [\#92](https://github.com/brainly/terraform-provider-redshift/issues/92)
+- Redshift cluster 404  [\#58](https://github.com/brainly/terraform-provider-redshift/issues/58)
+
+**Merged pull requests:**
+
+- Implement GRANT TO PUBLIC for all supported object types [\#106](https://github.com/brainly/terraform-provider-redshift/pull/106) ([winglot](https://github.com/winglot))
+- Fix conflicting superuser and syslog\_access fields [\#105](https://github.com/brainly/terraform-provider-redshift/pull/105) ([winglot](https://github.com/winglot))
+- Support hashed user passwords [\#103](https://github.com/brainly/terraform-provider-redshift/pull/103) ([hoxu](https://github.com/hoxu))
+- Add redshift\_schema import statement to README [\#100](https://github.com/brainly/terraform-provider-redshift/pull/100) ([pacesetterplus](https://github.com/pacesetterplus))
+
 ## [v1.0.4](https://github.com/brainly/terraform-provider-redshift/tree/v1.0.4) (2022-12-28)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.3...v1.0.4)

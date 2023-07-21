@@ -98,6 +98,11 @@ func Provider() *schema.Provider {
 							Optional:    true,
 							Description: "The AWS region where the Redshift cluster is located.",
 						},
+						"profile": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "The AWS profile to use when requesting temporary credentials.",
+						},
 						"auto_create_user": {
 							Type:        schema.TypeBool,
 							Optional:    true,
@@ -232,7 +237,13 @@ func temporaryCredentials(username string, d *schema.ResourceData) (string, stri
 }
 
 func redshiftSdkClient(d *schema.ResourceData) (*redshift.Client, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	loadOptions := []func(*config.LoadOptions) error{}
+
+	if profile := d.Get("temporary_credentials.0.profile").(string); profile != "" {
+		loadOptions = append(loadOptions, config.WithSharedConfigProfile(profile))
+	}
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), loadOptions...)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.5.0
 	github.com/hashicorp/terraform-plugin-docs v0.5.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.10.1
-	github.com/lib/pq v1.10.2
+	github.com/lib/pq v1.10.9
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 )
 

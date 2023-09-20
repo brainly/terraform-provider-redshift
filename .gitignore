@@ -22,3 +22,6 @@ dist/
 
 # Don't include vendored Go dependencies
 vendor/
+
+# Don't include secret local dev env files
+.env

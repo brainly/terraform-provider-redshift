@@ -19,3 +19,6 @@ terraform-provider-redshift
 
 # Don't include binaries in version control
 dist/
+
+# Don't include vendored Go dependencies
+vendor/

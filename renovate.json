@@ -1,5 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
   "forkProcessing": "enabled",
   "pinDigests": true,
   "postUpdateOptions": [

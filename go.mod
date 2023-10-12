@@ -3,7 +3,7 @@ module github.com/brainly/terraform-provider-redshift
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.21.1
+	github.com/aws/aws-sdk-go-v2 v1.21.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.44
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.42
 	github.com/aws/aws-sdk-go-v2/service/redshift v1.29.6

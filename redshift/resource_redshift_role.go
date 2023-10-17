@@ -16,7 +16,7 @@ const (
 func redshiftRole() *schema.Resource {
 	return &schema.Resource{
 		Description: `
-fix me
+Roles are collections of permissions that you can assign to a user or another role. You can assign system or database permissions to a role. A user inherits permissions from an assigned role.
 `,
 		Create: RedshiftResourceFunc(resourceRedshiftRoleCreate),
 		Read:   RedshiftResourceFunc(resourceRedshiftRoleRead),

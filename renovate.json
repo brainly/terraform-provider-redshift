@@ -4,6 +4,19 @@
     "config:recommended"
   ],
   "forkProcessing": "enabled",
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": true,
+      "minimumReleaseAge": 7
+    }
+  ],
   "pinDigests": true,
   "postUpdateOptions": [
     "gomodTidy"

@@ -479,7 +479,7 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 			WHEN eskind = 2 THEN 'hive_metastore_source'
 			WHEN eskind = 3 THEN 'rds_postgres_source'
 			WHEN eskind = 4 THEN 'redshift_source'
-			WHEN eskind = 7 THEN 'rds_mysql_source'
+			WHEN eskind = 8 THEN 'rds_mysql_source'
 			ELSE 'unknown'
 		END,
 		trim(databasename),

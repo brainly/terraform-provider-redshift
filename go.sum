@@ -34,8 +34,8 @@ github.com/aws/aws-sdk-go-v2/internal/ini v1.5.2 h1:5KL4rS1yq5rJ6Q8lrlsFPHCPWwhk
 github.com/aws/aws-sdk-go-v2/internal/ini v1.5.2/go.mod h1:rdAuXeHWhI/zkpYcO5n8WCpaIgY9MUxFyBsuqq3kjyA=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.2 h1:h7j73yuAVVjic8pqswh+L/7r2IHP43QwRyOu6zcCDDE=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.2/go.mod h1:H07AHdK5LSy8F7EJUQhoxyiCNkePoHj2D8P2yGTWafo=
-github.com/aws/aws-sdk-go-v2/service/redshift v1.35.0 h1:KF003slAbcjkpeMZUDrWLH8U868F9zn5TIswmdHt9Yo=
-github.com/aws/aws-sdk-go-v2/service/redshift v1.35.0/go.mod h1:QzJVQdGnJ6eBdeFi4yoAXLAEk5RS3kMwHtl51u70BJQ=
+github.com/aws/aws-sdk-go-v2/service/redshift v1.35.1 h1:pTlwCWe/ISK6NrWxTKLvuJ3cHdMYF7bKy7ed36CToqo=
+github.com/aws/aws-sdk-go-v2/service/redshift v1.35.1/go.mod h1:QYQOGOh3fgn99IdFEsSFwXILzMCQVW61y1DXLTtRKB4=
 github.com/aws/aws-sdk-go-v2/service/sso v1.17.1 h1:km+ZNjtLtpXYf42RdaDZnNHm9s7SYAuDGTafy6nd89A=
 github.com/aws/aws-sdk-go-v2/service/sso v1.17.1/go.mod h1:aHBr3pvBSD5MbzOvQtYutyPLLRPbl/y9x86XyJJnUXQ=
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.19.1 h1:iRFNqZH4a67IqPvK8xxtyQYnyrlsvwmpHOe9r55ggBA=

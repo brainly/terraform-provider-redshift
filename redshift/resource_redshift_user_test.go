@@ -290,7 +290,7 @@ func TestAccRedshiftUser_SuperuserSyslogAccess(t *testing.T) {
 			resource "redshift_user" "superuser" {
 			  name = %[1]q
 			  superuser = local.is_superuser
-			  password  = "foobar12355#"
+			  password  = "Foobar12355#"
 			  syslog_access = %[3]q
 			}
 			`, userName, test.isSuperuser, test.syslogAccess)
@@ -412,7 +412,7 @@ func checkUserExists(client *Client, user string) (bool, error) {
 		return false, err
 	}
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", user).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 FROM pg_user_info WHERE usename=$1", user).Scan(&_rez)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil

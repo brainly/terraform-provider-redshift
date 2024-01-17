@@ -27,7 +27,6 @@ Groups are collections of users who are all granted whatever privileges are asso
 		Delete: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftGroupDelete),
 		),
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftGroupExists),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -54,20 +53,6 @@ Groups are collections of users who are all granted whatever privileges are asso
 	}
 }
 
-func resourceRedshiftGroupExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	var name string
-	err := db.QueryRow("SELECT groname FROM pg_group WHERE grosysid = $1", d.Id()).Scan(&name)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
-}
-
 func resourceRedshiftGroupRead(db *DBConnection, d *schema.ResourceData) error {
 	return resourceRedshiftGroupReadImpl(db, d)
 }
@@ -78,8 +63,13 @@ func resourceRedshiftGroupReadImpl(db *DBConnection, d *schema.ResourceData) err
 		groupUsers []string
 	)
 
-	sql := `SELECT ARRAY(SELECT u.usename FROM pg_user_info u, pg_group g WHERE g.grosysid = $1 AND u.usesysid = ANY(g.grolist)) AS members, groname FROM pg_group WHERE grosysid = $1`
-	if err := db.QueryRow(sql, d.Id()).Scan(pq.Array(&groupUsers), &groupName); err != nil {
+	query := `SELECT ARRAY(SELECT u.usename FROM pg_user_info u, pg_group g WHERE g.grosysid = $1 AND u.usesysid = ANY(g.grolist)) AS members, groname FROM pg_group WHERE grosysid = $1`
+	err := db.QueryRow(query, d.Id()).Scan(pq.Array(&groupUsers), &groupName)
+	switch {
+	case err == sql.ErrNoRows:
+		d.SetId("")
+		return nil
+	case err != nil:
 		return err
 	}
 

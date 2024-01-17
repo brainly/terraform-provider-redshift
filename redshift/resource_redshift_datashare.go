@@ -32,7 +32,6 @@ The redshift_datashare resource should be defined on the producer cluster.
 Note: Data sharing is only supported on certain Redshift instance families,
 such as RA3.
 `,
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftDatashareExists),
 		Create: RedshiftResourceFunc(resourceRedshiftDatashareCreate),
 		Read:   RedshiftResourceFunc(resourceRedshiftDatashareRead),
 		Update: RedshiftResourceFunc(resourceRedshiftDatashareUpdate),
@@ -94,22 +93,6 @@ such as RA3.
 			},
 		},
 	}
-}
-
-func resourceRedshiftDatashareExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	var name string
-	query := "SELECT share_name FROM svv_datashares WHERE share_type='OUTBOUND' AND share_id=$1"
-	log.Printf("[DEBUG] check if datashare exists: %s\n", query)
-	err := db.QueryRow(query, d.Id()).Scan(&name)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
 }
 
 func resourceRedshiftDatashareCreate(db *DBConnection, d *schema.ResourceData) error {
@@ -278,7 +261,11 @@ func resourceRedshiftDatashareRead(db *DBConnection, d *schema.ResourceData) err
 	AND share_id = $1`
 	log.Printf("[DEBUG] %s, $1=%s\n", query, d.Id())
 	err = tx.QueryRow(query, d.Id()).Scan(&shareName, &owner, &publicAccessible, &producerAccount, &producerNamespace, &created)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		d.SetId("")
+		return nil
+	case err != nil:
 		return err
 	}
 

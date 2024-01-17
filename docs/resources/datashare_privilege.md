@@ -48,16 +48,14 @@ resource "redshift_datashare_privilege" "cross_account" {
 
 ### Required
 
-- **share_name** (String) Name of the datashare
+- `share_name` (String) Name of the datashare
 
 ### Optional
 
-- **account** (String) AWS account ID where the consumer cluster is located, for sharing data across accounts. Either this or `namespace` must be specified.
-- **id** (String) The ID of this resource.
-- **namespace** (String) Namespace (guid) of the consumer cluster, for sharing data within the same account. Either this or `account` must be specified.
+- `account` (String) AWS account ID where the consumer cluster is located, for sharing data across accounts. Either this or `namespace` must be specified.
+- `namespace` (String) Namespace (guid) of the consumer cluster, for sharing data within the same account. Either this or `account` must be specified.
 
 ### Read-Only
 
-- **share_date** (String) When the datashare permission was granted
-
-
+- `id` (String) The ID of this resource.
+- `share_date` (String) When the datashare permission was granted

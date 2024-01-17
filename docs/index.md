@@ -54,41 +54,41 @@ provider "redshift" {
 
 ### Optional
 
-- **database** (String) The name of the database to connect to. The default is `redshift`.
-- **host** (String) Name of Redshift server address to connect to.
-- **max_connections** (Number) Maximum number of connections to establish to the database. Zero means unlimited.
-- **password** (String, Sensitive) Password to be used if the Redshift server demands password authentication.
-- **port** (Number) The Redshift port number to connect to at the server host.
-- **sslmode** (String) This option determines whether or with what priority a secure SSL TCP/IP connection will be negotiated with the Redshift server. Valid values are `require` (default, always SSL, also skip verification), `verify-ca` (always SSL, verify that the certificate presented by the server was signed by a trusted CA), `verify-full` (always SSL, verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate), `disable` (no SSL).
-- **temporary_credentials** (Block List, Max: 1) Configuration for obtaining a temporary password using redshift:GetClusterCredentials (see [below for nested schema](#nestedblock--temporary_credentials))
-- **username** (String) Redshift user name to connect as.
+- `database` (String) The name of the database to connect to. The default is `redshift`.
+- `host` (String) Name of Redshift server address to connect to.
+- `max_connections` (Number) Maximum number of connections to establish to the database. Zero means unlimited.
+- `password` (String, Sensitive) Password to be used if the Redshift server demands password authentication.
+- `port` (Number) The Redshift port number to connect to at the server host.
+- `sslmode` (String) This option determines whether or with what priority a secure SSL TCP/IP connection will be negotiated with the Redshift server. Valid values are `require` (default, always SSL, also skip verification), `verify-ca` (always SSL, verify that the certificate presented by the server was signed by a trusted CA), `verify-full` (always SSL, verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate), `disable` (no SSL).
+- `temporary_credentials` (Block List, Max: 1) Configuration for obtaining a temporary password using redshift:GetClusterCredentials (see [below for nested schema](#nestedblock--temporary_credentials))
+- `username` (String) Redshift user name to connect as.
 
 <a id="nestedblock--temporary_credentials"></a>
 ### Nested Schema for `temporary_credentials`
 
 Required:
 
-- **cluster_identifier** (String) The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.
+- `cluster_identifier` (String) The unique identifier of the cluster that contains the database for which you are requesting credentials. This parameter is case sensitive.
 
 Optional:
 
-- **assume_role** (Block List, Max: 1) Optional assume role data used to obtain temporary credentials (see [below for nested schema](#nestedblock--temporary_credentials--assume_role))
-- **auto_create_user** (Boolean) Create a database user with the name specified for the user if one does not exist.
-- **db_groups** (Set of String) A list of the names of existing database groups that the user will join for the current session, in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
-- **duration_seconds** (Number) The number of seconds until the returned temporary password expires.
-- **region** (String) The AWS region where the Redshift cluster is located.
+- `assume_role` (Block List, Max: 1) Optional assume role data used to obtain temporary credentials (see [below for nested schema](#nestedblock--temporary_credentials--assume_role))
+- `auto_create_user` (Boolean) Create a database user with the name specified for the user if one does not exist.
+- `db_groups` (Set of String) A list of the names of existing database groups that the user will join for the current session, in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
+- `duration_seconds` (Number) The number of seconds until the returned temporary password expires.
+- `region` (String) The AWS region where the Redshift cluster is located.
 
 <a id="nestedblock--temporary_credentials--assume_role"></a>
 ### Nested Schema for `temporary_credentials.assume_role`
 
 Required:
 
-- **arn** (String) Amazon Resource Name of an IAM Role to assume prior to making API calls.
+- `arn` (String) Amazon Resource Name of an IAM Role to assume prior to making API calls.
 
 Optional:
 
-- **external_id** (String) A unique identifier that might be required when you assume a role in another account.
-- **session_name** (String) An identifier for the assumed role session.
+- `external_id` (String) A unique identifier that might be required when you assume a role in another account.
+- `session_name` (String) An identifier for the assumed role session.
 
 ## Proxy Support
 

@@ -27,12 +27,15 @@ resource "redshift_group" "staff" {
 
 ### Required
 
-- **name** (String) Name of the user group. Group names beginning with two underscores are reserved for Amazon Redshift internal use.
+- `name` (String) Name of the user group. Group names beginning with two underscores are reserved for Amazon Redshift internal use.
 
 ### Optional
 
-- **id** (String) The ID of this resource.
-- **users** (Set of String) List of the user names to add to the group
+- `users` (Set of String) List of the user names to add to the group
+
+### Read-Only
+
+- `id` (String) The ID of this resource.
 
 ## Import
 

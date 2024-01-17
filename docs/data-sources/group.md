@@ -23,14 +23,9 @@ data "redshift_group" "staff" {
 
 ### Required
 
-- **name** (String) Name of the user group. Group names beginning with two underscores are reserved for Amazon Redshift internal use.
-
-### Optional
-
-- **id** (String) The ID of this resource.
+- `name` (String) Name of the user group. Group names beginning with two underscores are reserved for Amazon Redshift internal use.
 
 ### Read-Only
 
-- **users** (Set of String) List of the user names who belong to the group
-
-
+- `id` (String) The ID of this resource.
+- `users` (Set of String) List of the user names who belong to the group

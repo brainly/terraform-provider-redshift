@@ -29,7 +29,6 @@ func redshiftDatasharePrivilege() *schema.Resource {
 			"After creating the privilege through terraform, you will also need to [authorize the cross-account datashare through the AWS console](https://docs.aws.amazon.com/redshift/latest/dg/across-account.html) before consumer clusters can access it.\n"+
 			"\n"+
 			"Note: Data sharing is only supported on certain instance families, such as RA3.", datasharePrivilegeNamespaceAttr, datasharePrivilegeAccountAttr),
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftDatasharePrivilegeExists),
 		Create: RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeCreate),
 		Read:   RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeRead),
 		Delete: RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeDelete),
@@ -104,51 +103,6 @@ func generateDatasharePrivilegesID(d *schema.ResourceData) string {
 	return strings.Join(source, ".")
 }
 
-func resourceRedshiftDatasharePrivilegeExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	shareName := d.Get(datasharePrivilegeShareNameAttr).(string)
-	consumerNamespaceRaw, useNamespace := d.GetOk(datasharePrivilegeNamespaceAttr)
-	if useNamespace {
-		return resourceRedshiftDatasharePrivilegeNamespaceExists(db, shareName, consumerNamespaceRaw.(string))
-	}
-	consumerAccountRaw, useAccount := d.GetOk(datasharePrivilegeAccountAttr)
-	if useAccount {
-		return resourceRedshiftDatasharePrivilegeAccountExists(db, shareName, consumerAccountRaw.(string))
-	}
-	return false, fmt.Errorf("Either %s or %s is required", datasharePrivilegeNamespaceAttr, datasharePrivilegeAccountAttr)
-}
-
-func resourceRedshiftDatasharePrivilegeNamespaceExists(db *DBConnection, shareName string, consumerNamespace string) (bool, error) {
-	var shareDate string
-	query := "SELECT share_date FROM svv_datashare_consumers WHERE share_name = $1 AND consumer_namespace = $2"
-	log.Printf("[DEBUG] %s\n", query)
-	err := db.QueryRow(query, shareName, consumerNamespace).Scan(&shareDate)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
-}
-
-func resourceRedshiftDatasharePrivilegeAccountExists(db *DBConnection, shareName string, consumerAccount string) (bool, error) {
-	var shareDate string
-	query := "SELECT share_date FROM svv_datashare_consumers WHERE share_name = $1 AND consumer_account = $2"
-	log.Printf("[DEBUG] %s\n", query)
-	err := db.QueryRow(query, shareName, consumerAccount).Scan(&shareDate)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
-}
-
 func resourceRedshiftDatasharePrivilegeCreate(db *DBConnection, d *schema.ResourceData) error {
 	shareName := d.Get(datasharePrivilegeShareNameAttr).(string)
 	consumerNamespaceRaw, consumerNamespaceSet := d.GetOk(datasharePrivilegeNamespaceAttr)
@@ -197,7 +151,11 @@ AND
 
 	log.Printf("[DEBUG] %s\n", query)
 	err := db.QueryRow(query, shareName, consumerNamespace).Scan(&shareDate)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		d.SetId("")
+		return nil
+	case err != nil:
 		return err
 	}
 
@@ -219,7 +177,11 @@ AND
 
 	log.Printf("[DEBUG] %s\n", query)
 	err := db.QueryRow(query, shareName, consumerAccount).Scan(&shareDate)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		d.SetId("")
+		return nil
+	case err != nil:
 		return err
 	}
 

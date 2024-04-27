@@ -14,14 +14,14 @@ import (
 )
 
 var (
-	testAccProviders map[string]*schema.Provider
+	testAccProviders map[string]func() (*schema.Provider, error)
 	testAccProvider  *schema.Provider
 )
 
 func init() {
 	testAccProvider = Provider()
-	testAccProviders = map[string]*schema.Provider{
-		"redshift": testAccProvider,
+	testAccProviders = map[string]func() (*schema.Provider, error){
+		"redshift": func() (*schema.Provider, error) { return testAccProvider, nil },
 	}
 }
 

@@ -12,7 +12,7 @@ func dataSourceRedshiftSchema() *schema.Resource {
 		Description: `
 A database contains one or more named schemas. Each schema in a database contains tables and other kinds of named objects. By default, a database has a single schema, which is named PUBLIC. You can use schemas to group database objects under a common name. Schemas are similar to file system directories, except that schemas cannot be nested.
 `,
-		Read: RedshiftResourceFunc(dataSourceRedshiftSchemaRead),
+		ReadWithoutTimeout: RedshiftResourceFunc(dataSourceRedshiftSchemaRead),
 		Schema: map[string]*schema.Schema{
 			schemaNameAttr: {
 				Type:        schema.TypeString,

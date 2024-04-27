@@ -22,12 +22,12 @@ const databaseDatashareSourceAccountAttr = "account_id"
 
 func redshiftDatabase() *schema.Resource {
 	return &schema.Resource{
-		Description: `Defines a local database.`,
-		Exists:      RedshiftResourceExistsFunc(resourceRedshiftDatabaseExists),
-		Create:      RedshiftResourceFunc(resourceRedshiftDatabaseCreate),
-		Read:        RedshiftResourceFunc(resourceRedshiftDatabaseRead),
-		Update:      RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
-		Delete:      RedshiftResourceFunc(resourceRedshiftDatabaseDelete),
+		Description:          `Defines a local database.`,
+		Exists:               RedshiftResourceExistsFunc(resourceRedshiftDatabaseExists),
+		CreateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatabaseCreate),
+		ReadWithoutTimeout:   RedshiftResourceFunc(resourceRedshiftDatabaseRead),
+		UpdateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
+		DeleteWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatabaseDelete),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},

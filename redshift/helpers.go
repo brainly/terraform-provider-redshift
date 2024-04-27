@@ -1,9 +1,11 @@
 package redshift
 
 import (
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"log"
 	"strings"
 	"time"
@@ -80,16 +82,16 @@ func getSchemaIDFromName(tx *sql.Tx, schema string) (schemaID int, err error) {
 	return
 }
 
-func RedshiftResourceFunc(fn func(*DBConnection, *schema.ResourceData) error) func(*schema.ResourceData, interface{}) error {
-	return func(d *schema.ResourceData, meta interface{}) error {
+func RedshiftResourceFunc(fn func(*DBConnection, *schema.ResourceData) error) func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics {
+	return func(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		client := meta.(*Client)
 
 		db, err := client.Connect()
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 
-		return fn(db, d)
+		return diag.FromErr(fn(db, d))
 	}
 }
 

@@ -13,9 +13,9 @@ import (
 
 func TestAccRedshiftGroup_Basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftGroupDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRedshiftGroupConfig,
@@ -86,9 +86,9 @@ func TestAccRedshiftGroup_Update(t *testing.T) {
 		}
 		`, userName1, userName2, userName3, groupNameUpdated)
 		resource.Test(t, resource.TestCase{
-			PreCheck:     func() { testAccPreCheck(t) },
-			Providers:    testAccProviders,
-			CheckDestroy: testAccCheckRedshiftGroupDestroy,
+			PreCheck:          func() { testAccPreCheck(t) },
+			ProviderFactories: testAccProviders,
+			CheckDestroy:      testAccCheckRedshiftGroupDestroy,
 			Steps: []resource.TestStep{
 				{
 					Config: configCreate,
@@ -163,9 +163,9 @@ resource "redshift_user" "user2" {
 }
 `, groupName, userName1, userName2)
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftGroupDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,

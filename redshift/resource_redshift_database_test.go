@@ -14,9 +14,9 @@ import (
 func TestAccResourceRedshiftDatabase_Basic(t *testing.T) {
 	dbName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_resource_basic"), "-", "_")
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftDatabaseDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftDatabaseDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccResourceRedshiftDatabaseConfig_Basic(dbName),
@@ -69,9 +69,9 @@ resource "redshift_user" "user" {
 	`, databaseNameAttr, dbNameNew, databaseOwnerAttr, userNameAttr, databaseConnLimitAttr, userName)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftDatabaseDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftDatabaseDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,

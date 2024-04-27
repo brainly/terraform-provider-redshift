@@ -31,10 +31,10 @@ func redshiftSchema() *schema.Resource {
 		Description: `
 A database contains one or more named schemas. Each schema in a database contains tables and other kinds of named objects. By default, a database has a single schema, which is named PUBLIC. You can use schemas to group database objects under a common name. Schemas are similar to file system directories, except that schemas cannot be nested.
 `,
-		Create: RedshiftResourceFunc(resourceRedshiftSchemaCreate),
-		Read:   RedshiftResourceFunc(resourceRedshiftSchemaRead),
-		Update: RedshiftResourceFunc(resourceRedshiftSchemaUpdate),
-		Delete: RedshiftResourceFunc(
+		CreateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftSchemaCreate),
+		ReadWithoutTimeout:   RedshiftResourceFunc(resourceRedshiftSchemaRead),
+		UpdateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftSchemaUpdate),
+		DeleteWithoutTimeout: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftSchemaDelete),
 		),
 		Exists: RedshiftResourceExistsFunc(resourceRedshiftSchemaExists),

@@ -6,9 +6,9 @@ import (
 
 func dataSourceRedshiftNamespace() *schema.Resource {
 	return &schema.Resource{
-		Description: `Gets the cluster namespace (unique ID) of the Amazon Redshift cluster.`,
-		Read:        RedshiftResourceFunc(dataSourceRedshiftNamespaceRead),
-		Schema:      map[string]*schema.Schema{},
+		Description:        `Gets the cluster namespace (unique ID) of the Amazon Redshift cluster.`,
+		ReadWithoutTimeout: RedshiftResourceFunc(dataSourceRedshiftNamespaceRead),
+		Schema:             map[string]*schema.Schema{},
 	}
 }
 

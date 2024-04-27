@@ -32,11 +32,11 @@ The redshift_datashare resource should be defined on the producer cluster.
 Note: Data sharing is only supported on certain Redshift instance families,
 such as RA3.
 `,
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftDatashareExists),
-		Create: RedshiftResourceFunc(resourceRedshiftDatashareCreate),
-		Read:   RedshiftResourceFunc(resourceRedshiftDatashareRead),
-		Update: RedshiftResourceFunc(resourceRedshiftDatashareUpdate),
-		Delete: RedshiftResourceFunc(resourceRedshiftDatashareDelete),
+		Exists:               RedshiftResourceExistsFunc(resourceRedshiftDatashareExists),
+		CreateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatashareCreate),
+		ReadWithoutTimeout:   RedshiftResourceFunc(resourceRedshiftDatashareRead),
+		UpdateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatashareUpdate),
+		DeleteWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatashareDelete),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},

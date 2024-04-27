@@ -71,7 +71,7 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 		"superuser",
 		"syslog_access",
 		`COALESCE(connection_limit::TEXT, 'UNLIMITED')`,
-		"sessiontimeout",
+		"session_timeout",
 	}
 
 	values := []interface{}{

@@ -43,16 +43,16 @@ func redshiftGrant() *schema.Resource {
 		Description: `
 Defines access privileges for users and  groups. Privileges include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific privileges for a table, database, schema, function, procedure, language, or column.
 `,
-		ReadWithoutTimeout: RedshiftResourceFunc(resourceRedshiftGrantRead),
-		CreateWithoutTimeout: RedshiftResourceFunc(
+		ReadContext: RedshiftResourceFunc(resourceRedshiftGrantRead),
+		CreateContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftGrantCreate),
 		),
-		DeleteWithoutTimeout: RedshiftResourceFunc(
+		DeleteContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftGrantDelete),
 		),
 
 		// Since we revoke all when creating, we can use create as update
-		UpdateWithoutTimeout: RedshiftResourceFunc(
+		UpdateContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftGrantCreate),
 		),
 

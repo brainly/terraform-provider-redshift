@@ -9,8 +9,8 @@ import (
 
 func dataSourceRedshiftDatabase() *schema.Resource {
 	return &schema.Resource{
-		Description:        `Fetches information about a Redshift database.`,
-		ReadWithoutTimeout: RedshiftResourceFunc(dataSourceRedshiftDatabaseRead),
+		Description: `Fetches information about a Redshift database.`,
+		ReadContext: RedshiftResourceFunc(dataSourceRedshiftDatabaseRead),
 		Schema: map[string]*schema.Schema{
 			databaseNameAttr: {
 				Type:        schema.TypeString,

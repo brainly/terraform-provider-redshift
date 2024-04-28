@@ -31,10 +31,10 @@ func redshiftSchema() *schema.Resource {
 		Description: `
 A database contains one or more named schemas. Each schema in a database contains tables and other kinds of named objects. By default, a database has a single schema, which is named PUBLIC. You can use schemas to group database objects under a common name. Schemas are similar to file system directories, except that schemas cannot be nested.
 `,
-		CreateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftSchemaCreate),
-		ReadWithoutTimeout:   RedshiftResourceFunc(resourceRedshiftSchemaRead),
-		UpdateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftSchemaUpdate),
-		DeleteWithoutTimeout: RedshiftResourceFunc(
+		CreateContext: RedshiftResourceFunc(resourceRedshiftSchemaCreate),
+		ReadContext:   RedshiftResourceFunc(resourceRedshiftSchemaRead),
+		UpdateContext: RedshiftResourceFunc(resourceRedshiftSchemaUpdate),
+		DeleteContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftSchemaDelete),
 		),
 		Exists: RedshiftResourceExistsFunc(resourceRedshiftSchemaExists),
@@ -449,7 +449,7 @@ func resourceRedshiftSchemaReadImpl(db *DBConnection, d *schema.ResourceData) er
 }
 
 func resourceRedshiftSchemaReadLocal(db *DBConnection, d *schema.ResourceData) error {
-	var schemaQuota int = 0
+	var schemaQuota = 0
 	isServerless, err := db.client.config.IsServerless(db)
 	if err != nil {
 		return err

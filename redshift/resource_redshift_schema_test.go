@@ -598,7 +598,7 @@ func checkSchemaExists(client *Client, schema string) (bool, error) {
 	}
 
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_namespace WHERE nspname=$1", strings.ToLower(schema)).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 FROM pg_namespace WHERE nspname=$1", strings.ToLower(schema)).Scan(&_rez)
 
 	switch {
 	case err == sql.ErrNoRows:

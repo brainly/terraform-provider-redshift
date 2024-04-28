@@ -235,7 +235,7 @@ func checkGroupExists(client *Client, group string) (bool, error) {
 		return false, err
 	}
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_group WHERE groname=$1", strings.ToLower(group)).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 FROM pg_group WHERE groname=$1", strings.ToLower(group)).Scan(&_rez)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil

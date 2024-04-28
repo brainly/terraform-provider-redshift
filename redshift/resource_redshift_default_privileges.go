@@ -32,16 +32,16 @@ var defaultPrivilegesObjectTypesCodes = map[string]string{
 
 func redshiftDefaultPrivileges() *schema.Resource {
 	return &schema.Resource{
-		Description:        `Defines the default set of access privileges to be applied to objects that are created in the future by the specified user. By default, users can change only their own default access privileges. Only a superuser can specify default privileges for other users.`,
-		ReadWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDefaultPrivilegesRead),
-		CreateWithoutTimeout: RedshiftResourceFunc(
+		Description: `Defines the default set of access privileges to be applied to objects that are created in the future by the specified user. By default, users can change only their own default access privileges. Only a superuser can specify default privileges for other users.`,
+		ReadContext: RedshiftResourceFunc(resourceRedshiftDefaultPrivilegesRead),
+		CreateContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftDefaultPrivilegesCreate),
 		),
-		DeleteWithoutTimeout: RedshiftResourceFunc(
+		DeleteContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftDefaultPrivilegesDelete),
 		),
 		// Since we revoke all when creating, we can use create as update
-		UpdateWithoutTimeout: RedshiftResourceFunc(
+		UpdateContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftDefaultPrivilegesCreate),
 		),
 

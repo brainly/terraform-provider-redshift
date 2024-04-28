@@ -337,7 +337,7 @@ resource "unknown_string" "password" {}
 						Computed: true,
 					},
 				},
-				CreateWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+				CreateContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 					d.SetId("test")
 					d.Set("result", "TestPassword123")
 					return nil
@@ -345,7 +345,7 @@ resource "unknown_string" "password" {}
 				Read: func(d *schema.ResourceData, meta interface{}) error {
 					return nil
 				},
-				DeleteWithoutTimeout: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+				DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 					return nil
 				},
 			},

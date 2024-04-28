@@ -148,7 +148,7 @@ func checkDatabaseExists(client *Client, database string) (bool, error) {
 		return false, err
 	}
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_database WHERE datname=$1", strings.ToLower(database)).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 FROM pg_database WHERE datname=$1", strings.ToLower(database)).Scan(&_rez)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil

@@ -14,7 +14,7 @@ func dataSourceRedshiftUser() *schema.Resource {
 		Description: `
 This data source can be used to fetch information about a specific database user. Users are authenticated when they login to Amazon Redshift. They can own databases and database objects (for example, tables) and can grant privileges on those objects to users, groups, and schemas to control who has access to which object. Users with CREATE DATABASE rights can create databases and grant privileges to those databases. Superusers have database ownership privileges for all databases.
 `,
-		ReadWithoutTimeout: RedshiftResourceFunc(dataSourceRedshiftUserRead),
+		ReadContext: RedshiftResourceFunc(dataSourceRedshiftUserRead),
 		Schema: map[string]*schema.Schema{
 			userNameAttr: {
 				Type:        schema.TypeString,

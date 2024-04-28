@@ -12,7 +12,7 @@ import (
 
 var (
 	dbRegistryLock sync.Mutex
-	dbRegistry     map[string]*DBConnection = make(map[string]*DBConnection, 1)
+	dbRegistry     = make(map[string]*DBConnection, 1)
 )
 
 // Config - provider config

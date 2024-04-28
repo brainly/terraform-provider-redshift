@@ -22,12 +22,12 @@ const databaseDatashareSourceAccountAttr = "account_id"
 
 func redshiftDatabase() *schema.Resource {
 	return &schema.Resource{
-		Description:          `Defines a local database.`,
-		Exists:               RedshiftResourceExistsFunc(resourceRedshiftDatabaseExists),
-		CreateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatabaseCreate),
-		ReadWithoutTimeout:   RedshiftResourceFunc(resourceRedshiftDatabaseRead),
-		UpdateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
-		DeleteWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatabaseDelete),
+		Description:   `Defines a local database.`,
+		Exists:        RedshiftResourceExistsFunc(resourceRedshiftDatabaseExists),
+		CreateContext: RedshiftResourceFunc(resourceRedshiftDatabaseCreate),
+		ReadContext:   RedshiftResourceFunc(resourceRedshiftDatabaseRead),
+		UpdateContext: RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
+		DeleteContext: RedshiftResourceFunc(resourceRedshiftDatabaseDelete),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -203,13 +203,13 @@ func resourceRedshiftDatabaseRead(db *DBConnection, d *schema.ResourceData) erro
 	var name, owner, connLimit, databaseType, shareName, producerAccount, producerNamespace string
 
 	query := `SELECT
-  trim(svv_redshift_databases.database_name),
-  trim(pg_user_info.usename),
+  TRIM(svv_redshift_databases.database_name),
+  TRIM(pg_user_info.usename),
   COALESCE(pg_database_info.datconnlimit::text, 'UNLIMITED'),
 	svv_redshift_databases.database_type,
-  trim(COALESCE(svv_datashares.share_name, '')),
-  trim(COALESCE(svv_datashares.producer_account, '')),
-  trim(COALESCE(svv_datashares.producer_namespace, ''))
+  TRIM(COALESCE(svv_datashares.share_name, '')),
+  TRIM(COALESCE(svv_datashares.producer_account, '')),
+  TRIM(COALESCE(svv_datashares.producer_namespace, ''))
 FROM
   svv_redshift_databases
 LEFT JOIN pg_database_info

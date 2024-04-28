@@ -32,11 +32,11 @@ The redshift_datashare resource should be defined on the producer cluster.
 Note: Data sharing is only supported on certain Redshift instance families,
 such as RA3.
 `,
-		Exists:               RedshiftResourceExistsFunc(resourceRedshiftDatashareExists),
-		CreateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatashareCreate),
-		ReadWithoutTimeout:   RedshiftResourceFunc(resourceRedshiftDatashareRead),
-		UpdateWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatashareUpdate),
-		DeleteWithoutTimeout: RedshiftResourceFunc(resourceRedshiftDatashareDelete),
+		Exists:        RedshiftResourceExistsFunc(resourceRedshiftDatashareExists),
+		CreateContext: RedshiftResourceFunc(resourceRedshiftDatashareCreate),
+		ReadContext:   RedshiftResourceFunc(resourceRedshiftDatashareRead),
+		UpdateContext: RedshiftResourceFunc(resourceRedshiftDatashareUpdate),
+		DeleteContext: RedshiftResourceFunc(resourceRedshiftDatashareDelete),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -266,8 +266,8 @@ func resourceRedshiftDatashareRead(db *DBConnection, d *schema.ResourceData) err
 
 	query := `
 	SELECT
-		trim(svv_datashares.share_name),
-		trim(pg_user.usename),
+		TRIM(svv_datashares.share_name),
+		TRIM(pg_user.usename),
 		svv_datashares.is_publicaccessible,
 		TRIM(COALESCE(svv_datashares.producer_account, '')),
 		TRIM(COALESCE(svv_datashares.producer_namespace, '')),

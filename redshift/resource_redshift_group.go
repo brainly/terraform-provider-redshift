@@ -21,15 +21,15 @@ func redshiftGroup() *schema.Resource {
 		Description: `
 Groups are collections of users who are all granted whatever privileges are associated with the group. You can use groups to assign privileges by role. For example, you can create different groups for sales, administration, and support and give the users in each group the appropriate access to the data they require for their work. You can grant or revoke privileges at the group level, and those changes will apply to all members of the group, except for superusers.
 `,
-		Create: RedshiftResourceFunc(resourceRedshiftGroupCreate),
-		Read:   RedshiftResourceFunc(resourceRedshiftGroupRead),
-		Update: RedshiftResourceFunc(resourceRedshiftGroupUpdate),
-		Delete: RedshiftResourceFunc(
+		CreateContext: RedshiftResourceFunc(resourceRedshiftGroupCreate),
+		ReadContext:   RedshiftResourceFunc(resourceRedshiftGroupRead),
+		UpdateContext: RedshiftResourceFunc(resourceRedshiftGroupUpdate),
+		DeleteContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftGroupDelete),
 		),
 		Exists: RedshiftResourceExistsFunc(resourceRedshiftGroupExists),
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -213,7 +213,7 @@ func setGroupName(tx *sql.Tx, d *schema.ResourceData) error {
 func checkIfUserExists(tx *sql.Tx, name string) (bool, error) {
 
 	var result int
-	err := tx.QueryRow("SELECT 1 from pg_user_info WHERE usename=$1", name).Scan(&result)
+	err := tx.QueryRow("SELECT 1 FROM pg_user_info WHERE usename=$1", name).Scan(&result)
 
 	switch {
 	case err == sql.ErrNoRows:

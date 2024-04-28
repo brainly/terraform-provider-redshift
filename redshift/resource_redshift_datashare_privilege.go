@@ -29,10 +29,10 @@ func redshiftDatasharePrivilege() *schema.Resource {
 			"After creating the privilege through terraform, you will also need to [authorize the cross-account datashare through the AWS console](https://docs.aws.amazon.com/redshift/latest/dg/across-account.html) before consumer clusters can access it.\n"+
 			"\n"+
 			"Note: Data sharing is only supported on certain instance families, such as RA3.", datasharePrivilegeNamespaceAttr, datasharePrivilegeAccountAttr),
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftDatasharePrivilegeExists),
-		Create: RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeCreate),
-		Read:   RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeRead),
-		Delete: RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeDelete),
+		Exists:        RedshiftResourceExistsFunc(resourceRedshiftDatasharePrivilegeExists),
+		CreateContext: RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeCreate),
+		ReadContext:   RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeRead),
+		DeleteContext: RedshiftResourceFunc(resourceRedshiftDatasharePrivilegeDelete),
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
 			// Exactly one of "namespace" or "account" must be specified, however
 			// terraform does not let you validate across multiple top-level attributes.

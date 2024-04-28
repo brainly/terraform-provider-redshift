@@ -14,9 +14,9 @@ import (
 func TestAccResourceRedshiftDatabase_Basic(t *testing.T) {
 	dbName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_resource_basic"), "-", "_")
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftDatabaseDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftDatabaseDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccResourceRedshiftDatabaseConfig_Basic(dbName),
@@ -69,9 +69,9 @@ resource "redshift_user" "user" {
 	`, databaseNameAttr, dbNameNew, databaseOwnerAttr, userNameAttr, databaseConnLimitAttr, userName)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftDatabaseDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftDatabaseDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -148,7 +148,7 @@ func checkDatabaseExists(client *Client, database string) (bool, error) {
 		return false, err
 	}
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_database WHERE datname=$1", strings.ToLower(database)).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 FROM pg_database WHERE datname=$1", strings.ToLower(database)).Scan(&_rez)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil

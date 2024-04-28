@@ -1,8 +1,10 @@
 package redshift
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"os"
 	"regexp"
 	"strconv"
@@ -17,9 +19,9 @@ import (
 
 func TestAccRedshiftUser_Basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRedshiftUserConfig,
@@ -94,9 +96,9 @@ resource "redshift_user" "update_user" {
 }
 `
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -166,9 +168,9 @@ resource "redshift_user" "update_superuser" {
 }
 `
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -221,9 +223,9 @@ resource "redshift_user" "superuser" {
 `, userName)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config:      config,
@@ -243,9 +245,9 @@ resource "redshift_user" "superuser" {
 `, userName)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: config,
@@ -296,9 +298,9 @@ func TestAccRedshiftUser_SuperuserSyslogAccess(t *testing.T) {
 			`, userName, test.isSuperuser, test.syslogAccess)
 
 			resource.Test(t, resource.TestCase{
-				PreCheck:     func() { testAccPreCheck(t) },
-				Providers:    testAccProviders,
-				CheckDestroy: testAccCheckRedshiftUserDestroy,
+				PreCheck:          func() { testAccPreCheck(t) },
+				ProviderFactories: testAccProviders,
+				CheckDestroy:      testAccCheckRedshiftUserDestroy,
 				Steps: []resource.TestStep{
 					{
 						Config:      config,
@@ -335,30 +337,30 @@ resource "unknown_string" "password" {}
 						Computed: true,
 					},
 				},
-				Create: func(d *schema.ResourceData, meta interface{}) error {
+				CreateContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 					d.SetId("test")
 					d.Set("result", "TestPassword123")
 					return nil
 				},
-				Read: func(d *schema.ResourceData, meta interface{}) error {
+				ReadContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 					return nil
 				},
-				Delete: func(d *schema.ResourceData, meta interface{}) error {
+				DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 					return nil
 				},
 			},
 		},
 	}
 
-	providers := map[string]*schema.Provider{
-		"unknown":  unknownProvider,
-		"redshift": testAccProvider,
+	providers := map[string]func() (*schema.Provider, error){
+		"unknown":  func() (*schema.Provider, error) { return unknownProvider, nil },
+		"redshift": func() (*schema.Provider, error) { return testAccProvider, nil },
 	}
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    providers,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: providers,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: config,

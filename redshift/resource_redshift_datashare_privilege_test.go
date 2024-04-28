@@ -27,9 +27,9 @@ resource "redshift_datashare_privilege" "consumer_namespace" {
 `, dataShareNameAttr, shareName, datasharePrivilegeShareNameAttr, datasharePrivilegeNamespaceAttr, consumerNamespace)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftDatasharePrivilegeDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftDatasharePrivilegeDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: config,
@@ -58,9 +58,9 @@ resource "redshift_datashare_privilege" "consumer_account" {
 `, dataShareNameAttr, shareName, datasharePrivilegeShareNameAttr, datasharePrivilegeAccountAttr, consumerAccount)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftDatasharePrivilegeDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftDatasharePrivilegeDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: config,

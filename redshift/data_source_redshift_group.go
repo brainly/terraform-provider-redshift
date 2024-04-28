@@ -14,7 +14,7 @@ func dataSourceRedshiftGroup() *schema.Resource {
 		Description: `
 Groups are collections of users who are all granted whatever privileges are associated with the group. You can use groups to assign privileges by role. For example, you can create different groups for sales, administration, and support and give the users in each group the appropriate access to the data they require for their work. You can grant or revoke privileges at the group level, and those changes will apply to all members of the group, except for superusers.
 		`,
-		Read: RedshiftResourceFunc(dataSourceRedshiftGroupRead),
+		ReadContext: RedshiftResourceFunc(dataSourceRedshiftGroupRead),
 		Schema: map[string]*schema.Schema{
 			groupNameAttr: {
 				Type:         schema.TypeString,

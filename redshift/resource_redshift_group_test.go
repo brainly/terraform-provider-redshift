@@ -13,9 +13,9 @@ import (
 
 func TestAccRedshiftGroup_Basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftGroupDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRedshiftGroupConfig,
@@ -86,9 +86,9 @@ func TestAccRedshiftGroup_Update(t *testing.T) {
 		}
 		`, userName1, userName2, userName3, groupNameUpdated)
 		resource.Test(t, resource.TestCase{
-			PreCheck:     func() { testAccPreCheck(t) },
-			Providers:    testAccProviders,
-			CheckDestroy: testAccCheckRedshiftGroupDestroy,
+			PreCheck:          func() { testAccPreCheck(t) },
+			ProviderFactories: testAccProviders,
+			CheckDestroy:      testAccCheckRedshiftGroupDestroy,
 			Steps: []resource.TestStep{
 				{
 					Config: configCreate,
@@ -163,9 +163,9 @@ resource "redshift_user" "user2" {
 }
 `, groupName, userName1, userName2)
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftGroupDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -235,7 +235,7 @@ func checkGroupExists(client *Client, group string) (bool, error) {
 		return false, err
 	}
 	var _rez int
-	err = db.QueryRow("SELECT 1 from pg_group WHERE groname=$1", strings.ToLower(group)).Scan(&_rez)
+	err = db.QueryRow("SELECT 1 FROM pg_group WHERE groname=$1", strings.ToLower(group)).Scan(&_rez)
 	switch {
 	case err == sql.ErrNoRows:
 		return false, nil

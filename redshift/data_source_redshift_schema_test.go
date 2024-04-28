@@ -13,9 +13,9 @@ import (
 func TestAccDataSourceRedshiftSchema_basic(t *testing.T) {
 	schemaName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_data_basic"), "-", "_")
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftSchemaDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceRedshiftSchemaConfig_basic(schemaName),
@@ -68,9 +68,9 @@ data "redshift_schema" "spectrum" {
 `,
 		schemaNameAttr, schemaName, schemaExternalSchemaAttr, dbName, tfArray(iamRoleArns))
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftSchemaDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -133,9 +133,9 @@ data "redshift_schema" "hive" {
 `,
 		schemaNameAttr, schemaName, schemaExternalSchemaAttr, dbName, dbHostname, dbPort, tfArray(iamRoleArns))
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftSchemaDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -209,9 +209,9 @@ data "redshift_schema" "postgres" {
 `,
 		schemaNameAttr, schemaName, schemaExternalSchemaAttr, dbName, dbHostname, dbPort, dbSchema, tfArray(iamRoleArns), dbSecretArn)
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftSchemaDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -281,9 +281,9 @@ data "redshift_schema" "mysql" {
 `,
 		schemaNameAttr, schemaName, schemaExternalSchemaAttr, dbName, dbHostname, dbPort, tfArray(iamRoleArns), dbSecretArn)
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftSchemaDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,
@@ -342,9 +342,9 @@ data "redshift_schema" "redshift" {
 `,
 		schemaNameAttr, schemaName, schemaExternalSchemaAttr, dbName, dbSchema)
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftSchemaDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftSchemaDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: configCreate,

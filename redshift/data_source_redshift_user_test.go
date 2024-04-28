@@ -12,9 +12,9 @@ import (
 func TestAccDataSourceRedshiftUser_Basic(t *testing.T) {
 	userName := strings.ReplaceAll(acctest.RandomWithPrefix("tf_acc_data_user_basic"), "-", "_")
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRedshiftUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckRedshiftUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceRedshiftUserConfig_Basic(userName),

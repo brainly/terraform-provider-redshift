@@ -33,15 +33,15 @@ var defaultPrivilegesObjectTypesCodes = map[string]string{
 func redshiftDefaultPrivileges() *schema.Resource {
 	return &schema.Resource{
 		Description: `Defines the default set of access privileges to be applied to objects that are created in the future by the specified user. By default, users can change only their own default access privileges. Only a superuser can specify default privileges for other users.`,
-		Read:        RedshiftResourceFunc(resourceRedshiftDefaultPrivilegesRead),
-		Create: RedshiftResourceFunc(
+		ReadContext: RedshiftResourceFunc(resourceRedshiftDefaultPrivilegesRead),
+		CreateContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftDefaultPrivilegesCreate),
 		),
-		Delete: RedshiftResourceFunc(
+		DeleteContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftDefaultPrivilegesDelete),
 		),
 		// Since we revoke all when creating, we can use create as update
-		Update: RedshiftResourceFunc(
+		UpdateContext: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftDefaultPrivilegesCreate),
 		),
 
@@ -220,14 +220,14 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, entityI
 	if entityIsUser {
 		query = `
 	      SELECT 
-		decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as select,
-		decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as update,
-		decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as insert,
-		decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as delete,
-		decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as drop,
-		decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as references,
-		decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as rule,
-		decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) as trigger
+		decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS SELECT,
+		decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS UPDATE,
+		decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS INSERT,
+		decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS DELETE,
+		decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS DROP,
+		decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS REFERENCES,
+		decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS rule,
+		decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(defaclacl, '|'), '"', ''), 'group '||u.usename), u.usename||'=', 2) ,'/',1)),0,0,1) AS TRIGGER
 	      FROM pg_user u, pg_default_acl acl
 	      WHERE 
 		acl.defaclnamespace = $1
@@ -239,14 +239,14 @@ func readGroupTableDefaultPrivileges(tx *sql.Tx, d *schema.ResourceData, entityI
 	} else {
 		query = `
 	      SELECT 
-		decode(charindex('r',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as select,
-		decode(charindex('w',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as update,
-		decode(charindex('a',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as insert,
-		decode(charindex('d',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as delete,
-		decode(charindex('D',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as drop,
-		decode(charindex('x',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as references,
-		decode(charindex('R',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as rule,
-		decode(charindex('t',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) as trigger
+		decode(charindex('r',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS SELECT,
+		decode(charindex('w',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS UPDATE,
+		decode(charindex('a',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS INSERT,
+		decode(charindex('d',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS DELETE,
+		decode(charindex('D',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS DROP,
+		decode(charindex('x',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS REFERENCES,
+		decode(charindex('R',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS rule,
+		decode(charindex('t',split_part(split_part(replace(array_to_string(defaclacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)),0,0,1) AS TRIGGER
 	      FROM pg_group gr, pg_default_acl acl
 	      WHERE 
 		acl.defaclnamespace = $1

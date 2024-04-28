@@ -12,7 +12,7 @@ func dataSourceRedshiftSchema() *schema.Resource {
 		Description: `
 A database contains one or more named schemas. Each schema in a database contains tables and other kinds of named objects. By default, a database has a single schema, which is named PUBLIC. You can use schemas to group database objects under a common name. Schemas are similar to file system directories, except that schemas cannot be nested.
 `,
-		Read: RedshiftResourceFunc(dataSourceRedshiftSchemaRead),
+		ReadContext: RedshiftResourceFunc(dataSourceRedshiftSchemaRead),
 		Schema: map[string]*schema.Schema{
 			schemaNameAttr: {
 				Type:        schema.TypeString,
@@ -269,13 +269,13 @@ func dataSourceRedshiftSchemaRead(db *DBConnection, d *schema.ResourceData) erro
 	err := db.QueryRow(`
 			SELECT
 				pg_namespace.oid,
-				trim(pg_user_info.usename),
-				trim(svv_all_schemas.schema_type)
+				TRIM(pg_user_info.usename),
+				TRIM(svv_all_schemas.schema_type)
 			FROM svv_all_schemas
-			INNER JOIN pg_namespace ON (svv_all_schemas.database_name = $1 and svv_all_schemas.schema_name = pg_namespace.nspname)
+			INNER JOIN pg_namespace ON (svv_all_schemas.database_name = $1 AND svv_all_schemas.schema_name = pg_namespace.nspname)
 	LEFT JOIN pg_user_info
-		ON (svv_all_schemas.database_name = $1 and pg_user_info.usesysid = svv_all_schemas.schema_owner)
-	where svv_all_schemas.database_name = $1
+		ON (svv_all_schemas.database_name = $1 AND pg_user_info.usesysid = svv_all_schemas.schema_owner)
+	WHERE svv_all_schemas.database_name = $1
 	AND svv_all_schemas.schema_name = $2`, db.client.databaseName, d.Get(schemaNameAttr).(string)).Scan(&schemaId, &schemaOwner, &schemaType)
 	if err != nil {
 		return err

@@ -10,7 +10,7 @@ import (
 func dataSourceRedshiftDatabase() *schema.Resource {
 	return &schema.Resource{
 		Description: `Fetches information about a Redshift database.`,
-		Read:        RedshiftResourceFunc(dataSourceRedshiftDatabaseRead),
+		ReadContext: RedshiftResourceFunc(dataSourceRedshiftDatabaseRead),
 		Schema: map[string]*schema.Schema{
 			databaseNameAttr: {
 				Type:        schema.TypeString,
@@ -73,12 +73,12 @@ func dataSourceRedshiftDatabaseRead(db *DBConnection, d *schema.ResourceData) er
 
 	err := db.QueryRow(`SELECT
   pg_database_info.datid,
-  trim(pg_user_info.usename),
+  TRIM(pg_user_info.usename),
   COALESCE(pg_database_info.datconnlimit::text, 'UNLIMITED'),
 	svv_redshift_databases.database_type,
-  trim(COALESCE(svv_datashares.share_name, '')),
-  trim(COALESCE(svv_datashares.producer_account, '')),
-  trim(COALESCE(svv_datashares.producer_namespace, ''))
+  TRIM(COALESCE(svv_datashares.share_name, '')),
+  TRIM(COALESCE(svv_datashares.producer_account, '')),
+  TRIM(COALESCE(svv_datashares.producer_namespace, ''))
 FROM
   svv_redshift_databases
 LEFT JOIN pg_database_info

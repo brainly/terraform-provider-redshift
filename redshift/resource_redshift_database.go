@@ -29,7 +29,7 @@ func redshiftDatabase() *schema.Resource {
 		UpdateContext: RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
 		DeleteContext: RedshiftResourceFunc(resourceRedshiftDatabaseDelete),
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 		CustomizeDiff: forceNewIfListSizeChanged(databaseDatashareSourceAttr),
 		Schema: map[string]*schema.Schema{

@@ -342,7 +342,7 @@ resource "unknown_string" "password" {}
 					d.Set("result", "TestPassword123")
 					return nil
 				},
-				Read: func(d *schema.ResourceData, meta interface{}) error {
+				ReadContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 					return nil
 				},
 				DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

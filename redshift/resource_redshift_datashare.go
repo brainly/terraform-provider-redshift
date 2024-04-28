@@ -38,7 +38,7 @@ such as RA3.
 		UpdateContext: RedshiftResourceFunc(resourceRedshiftDatashareUpdate),
 		DeleteContext: RedshiftResourceFunc(resourceRedshiftDatashareDelete),
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 		Schema: map[string]*schema.Schema{
 			dataShareNameAttr: {

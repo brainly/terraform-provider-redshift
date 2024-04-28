@@ -3,6 +3,7 @@ package redshift
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"log"
 	"regexp"
 	"time"
@@ -143,14 +144,14 @@ func Provider() *schema.Provider {
 			"redshift_database":  dataSourceRedshiftDatabase(),
 			"redshift_namespace": dataSourceRedshiftNamespace(),
 		},
-		ConfigureFunc: providerConfigure,
+		ConfigureContextFunc: providerConfigure,
 	}
 }
 
-func providerConfigure(d *schema.ResourceData) (interface{}, error) {
+func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	username, password, err := resolveCredentials(d)
 	if err != nil {
-		return nil, err
+		return nil, diag.FromErr(err)
 	}
 	config := Config{
 		Host:     d.Get("host").(string),

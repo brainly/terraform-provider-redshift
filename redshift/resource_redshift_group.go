@@ -29,7 +29,7 @@ Groups are collections of users who are all granted whatever privileges are asso
 		),
 		Exists: RedshiftResourceExistsFunc(resourceRedshiftGroupExists),
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		Schema: map[string]*schema.Schema{

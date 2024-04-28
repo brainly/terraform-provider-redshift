@@ -39,7 +39,7 @@ A database contains one or more named schemas. Each schema in a database contain
 		),
 		Exists: RedshiftResourceExistsFunc(resourceRedshiftSchemaExists),
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 		CustomizeDiff: forceNewIfListSizeChanged(schemaExternalSchemaAttr),
 		Schema: map[string]*schema.Schema{

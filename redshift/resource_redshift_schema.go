@@ -424,14 +424,14 @@ func resourceRedshiftSchemaReadImpl(db *DBConnection, d *schema.ResourceData) er
 	// Step 1: get basic schema info
 	err := db.QueryRow(`
 			SELECT
-				trim(svv_all_schemas.schema_name),
-				trim(pg_user_info.usename),
-				trim(svv_all_schemas.schema_type)
+				TRIM(svv_all_schemas.schema_name),
+				TRIM(pg_user_info.usename),
+				TRIM(svv_all_schemas.schema_type)
 			FROM svv_all_schemas
-			INNER JOIN pg_namespace ON (svv_all_schemas.database_name = $1 and svv_all_schemas.schema_name = pg_namespace.nspname)
+			INNER JOIN pg_namespace ON (svv_all_schemas.database_name = $1 AND svv_all_schemas.schema_name = pg_namespace.nspname)
 	LEFT JOIN pg_user_info
-		ON (svv_all_schemas.database_name = $1 and pg_user_info.usesysid = svv_all_schemas.schema_owner)
-	where svv_all_schemas.database_name = $1
+		ON (svv_all_schemas.database_name = $1 AND pg_user_info.usesysid = svv_all_schemas.schema_owner)
+	WHERE svv_all_schemas.database_name = $1
 	AND pg_namespace.oid = $2`, db.client.databaseName, d.Id()).Scan(&schemaName, &schemaOwner, &schemaType)
 	if err != nil {
 		return err
@@ -484,7 +484,7 @@ func resourceRedshiftSchemaReadExternal(db *DBConnection, d *schema.ResourceData
 			WHEN eskind = 7 THEN 'rds_mysql_source'
 			ELSE 'unknown'
 		END,
-		trim(databasename),
+		TRIM(databasename),
 		COALESCE(CASE WHEN is_valid_json(esoptions) THEN json_extract_path_text(esoptions, 'IAM_ROLE') END, ''),
 		COALESCE(CASE WHEN is_valid_json(esoptions) THEN json_extract_path_text(esoptions, 'CATALOG_ROLE') END, ''),
 		COALESCE(CASE WHEN is_valid_json(esoptions) THEN json_extract_path_text(esoptions, 'REGION') END, ''),

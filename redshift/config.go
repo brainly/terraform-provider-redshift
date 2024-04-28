@@ -25,6 +25,7 @@ type Config struct {
 	SSLMode  string
 	MaxConns int
 
+	serverlessCheckMutex sync.Mutex
 	isServerless         bool
 	checkedForServerless bool
 }
@@ -52,6 +53,8 @@ func (c *Config) NewClient(database string) *Client {
 }
 
 func (c *Config) IsServerless(db *DBConnection) (bool, error) {
+	c.serverlessCheckMutex.Lock()
+	defer c.serverlessCheckMutex.Unlock()
 	if c.checkedForServerless {
 		return c.isServerless, nil
 	}

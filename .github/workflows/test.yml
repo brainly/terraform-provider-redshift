@@ -17,3 +17,12 @@ jobs:
 
     - name: Run tests
       run: make test
+
+  check-goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check GoReleaser config
+      uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6
+      with:
+        version: latest
+        args: check

@@ -24,7 +24,7 @@ This data source can be used to fetch information about a specific database user
 					"public",
 				}, true),
 				StateFunc: func(val interface{}) string {
-					return strings.ToLower(val.(string))
+					return val.(string)
 				},
 			},
 			userValidUntilAttr: {

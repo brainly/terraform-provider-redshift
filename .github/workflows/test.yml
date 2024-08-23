@@ -21,6 +21,12 @@ jobs:
   check-goreleaser:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+
+    - name: Unshallow
+      run: git fetch --prune --unshallow
+
     - name: Check GoReleaser config
       uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6
       with:

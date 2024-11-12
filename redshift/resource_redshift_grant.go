@@ -273,7 +273,7 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 
 func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	var entityName, query string
-	var schemaCreate, schemaUsage bool
+	var schemaCreate, schemaUsage , schemaAlter bool
 
 	_, isUser := d.GetOk(grantUserAttr)
 	schemaName := d.Get(grantSchemaAttr).(string)
@@ -283,7 +283,8 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
 	SELECT
 		decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
-		decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage
+		decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage,
+		decode(charindex('A',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as alter
 	FROM pg_namespace ns, pg_user u
 	WHERE
 		ns.nspname=$1 
@@ -294,7 +295,8 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
   SELECT
     decode(charindex('C',split_part(split_part(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), 0,0,1) as create,
-    decode(charindex('U',split_part(split_part(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), 0,0,1) as usage
+    decode(charindex('U',split_part(split_part(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), 0,0,1) as usage,
+    decode(charindex('A',split_part(split_part(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), 0,0,1) as alter
   FROM pg_namespace ns, pg_group gr
   WHERE
     ns.nspname=$1 
@@ -309,7 +311,8 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
 			SELECT
 				decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
-				decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as usage
+				decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as usage,
+				decode(charindex('A',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as alter
 			FROM pg_namespace ns
 			WHERE
 				ns.nspname=$1
@@ -317,13 +320,14 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 		queryArgs = []interface{}{schemaName}
 	}
 
-	if err := db.QueryRow(query, queryArgs...).Scan(&schemaCreate, &schemaUsage); err != nil {
+	if err := db.QueryRow(query, queryArgs...).Scan(&schemaCreate, &schemaUsage, &schemaAlter); err != nil {
 		return err
 	}
 
 	privileges := []string{}
 	appendIfTrue(schemaCreate, "create", &privileges)
 	appendIfTrue(schemaUsage, "usage", &privileges)
+	appendIfTrue(schemaAlter, "alter", &privileges)
 
 	log.Printf("[DEBUG] Collected schema '%s' privileges for %s: %v", schemaName, entityName, privileges)
 

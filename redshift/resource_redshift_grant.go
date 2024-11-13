@@ -346,11 +346,13 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
   SELECT
     relname,
+	decode(charindex('A',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as alter,
     decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as select,
     decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as update,
     decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as insert,
     decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as delete,
     decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as drop,
+    decode(charindex('P',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as truncate,
     decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as references,
     decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as rule,
     decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as trigger
@@ -366,11 +368,13 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
   SELECT
     relname,
+    decode(charindex('A',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as alter,
     decode(charindex('r',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as select,
     decode(charindex('w',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as update,
     decode(charindex('a',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as insert,
     decode(charindex('d',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as delete,
     decode(charindex('D',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as drop,
+    decode(charindex('P',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as truncate,
     decode(charindex('x',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as references,
     decode(charindex('R',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as rule,
     decode(charindex('t',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as trigger
@@ -393,14 +397,17 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		query = `
 		SELECT
 		  relname,
+		  decode(charindex('A',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as alter,
 		  decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as select,
 		  decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as update,
 		  decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as insert,
 		  decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as delete,
 		  decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as drop,
+		  decode(charindex('P',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as truncate,
 		  decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as references,
 		  decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as rule,
 		  decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as trigger
+
 		FROM pg_class cl
 		JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
 		WHERE
@@ -420,9 +427,9 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	for rows.Next() {
 		var objName string
-		var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences, tableRule, tableTrigger bool
+		var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences, tableRule, tableTrigger, tableAlter, tableTruncate bool
 
-		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableDrop, &tableReferences, &tableRule, &tableTrigger); err != nil {
+		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableDrop, &tableReferences, &tableRule, &tableTrigger, &tableAlter, &tableTruncate); err != nil {
 			return err
 		}
 
@@ -431,6 +438,9 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		}
 
 		privilegesSet := schema.NewSet(schema.HashString, nil)
+		if tableAlter {
+			privilegesSet.Add("alter")
+		}
 		if tableSelect {
 			privilegesSet.Add("select")
 		}
@@ -454,6 +464,9 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		}
 		if tableTrigger {
 			privilegesSet.Add("trigger")
+		}
+		if tableTruncate {
+			privilegesSet.Add("truncate")
 		}
 
 		if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {

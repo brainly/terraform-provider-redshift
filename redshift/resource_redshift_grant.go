@@ -427,9 +427,9 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 
 	for rows.Next() {
 		var objName string
-		var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences, tableRule, tableTrigger, tableAlter, tableTruncate bool
+		var tableAlter, tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableTruncate, tableReferences, tableRule, tableTrigger bool
 
-		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableDrop, &tableReferences, &tableRule, &tableTrigger, &tableAlter, &tableTruncate); err != nil {
+		if err := rows.Scan(&objName,  &tableAlter, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableDrop, &tableTruncate, &tableReferences, &tableRule, &tableTrigger); err != nil {
 			return err
 		}
 
@@ -456,6 +456,9 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		if tableDrop {
 			privilegesSet.Add("drop")
 		}
+		if tableTruncate {
+			privilegesSet.Add("truncate")
+		}
 		if tableReferences {
 			privilegesSet.Add("references")
 		}
@@ -464,9 +467,6 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		}
 		if tableTrigger {
 			privilegesSet.Add("trigger")
-		}
-		if tableTruncate {
-			privilegesSet.Add("truncate")
 		}
 
 		if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {

@@ -18,6 +18,7 @@ const (
 	dataShareProducerNamespaceAttr = "producer_namespace"
 	dataShareCreatedAttr           = "created"
 	dataShareSchemasAttr           = "schemas"
+	dataShareTablesAttr            = "tables"
 )
 
 func redshiftDatashare() *schema.Resource {
@@ -83,12 +84,30 @@ such as RA3.
 			dataShareSchemasAttr: {
 				Type:        schema.TypeSet,
 				Optional:    true,
-				Description: "Defines which schemas are exposed to the data share.",
+				Description: "Defines which schemas and tables are exposed to the data share.",
 				Set:         schema.HashString,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					StateFunc: func(val interface{}) string {
-						return strings.ToLower(val.(string))
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"schema_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Schema name to include in the data share.",
+							StateFunc: func(val interface{}) string {
+								return strings.ToLower(val.(string))
+							},
+						},
+						dataShareTablesAttr: {
+							Type:        schema.TypeSet,
+							Optional:    true,
+							Description: "Specific tables in the schema to be added to the data share. If empty, all tables in the schema will be included.",
+							Set:         schema.HashString,
+							Elem: &schema.Schema{
+								Type: schema.TypeString,
+								StateFunc: func(val interface{}) string {
+									return strings.ToLower(val.(string))
+								},
+							},
+						},
 					},
 				},
 			},
@@ -146,7 +165,7 @@ func resourceRedshiftDatashareCreate(db *DBConnection, d *schema.ResourceData) e
 	}
 
 	for _, schema := range d.Get(dataShareSchemasAttr).(*schema.Set).List() {
-		err = addSchemaToDatashare(tx, shareName, schema.(string))
+		err = addSchemaToDatashare(tx, shareName, schema.(map[string]interface{}))
 		if err != nil {
 			return err
 		}
@@ -159,17 +178,47 @@ func resourceRedshiftDatashareCreate(db *DBConnection, d *schema.ResourceData) e
 	return resourceRedshiftDatashareRead(db, d)
 }
 
-func addSchemaToDatashare(tx *sql.Tx, shareName string, schemaName string) error {
-	err := resourceRedshiftDatashareAddSchema(tx, shareName, schemaName)
-	if err != nil {
-		return err
-	}
-	err = resourceRedshiftDatashareAddAllTables(tx, shareName, schemaName)
-	if err != nil {
-		return err
-	}
-	err = resourceRedshiftDatashareAddAllFunctions(tx, shareName, schemaName)
-	return err
+func addSchemaToDatashare(tx *sql.Tx, shareName string, schema map[string]interface{}) error {
+    // Ensure schema_name is present and of type string
+    schemaName, ok := schema["schema_name"].(string)
+    if !ok || schemaName == "" {
+        return fmt.Errorf("schema_name is required and must be a string")
+    }
+
+    // Add schema to datashare
+    if err := resourceRedshiftDatashareAddSchema(tx, shareName, schemaName); err != nil {
+        return err
+    }
+
+    // Check if specific tables are specified
+    if tables, ok := schema["tables"].([]string); ok && len(tables) > 0 {
+        // Add specific tables in the schema
+        for _, table := range tables {
+            if err := resourceRedshiftDatashareAddTable(tx, shareName, schemaName, table); err != nil {
+                return err
+            }
+        }
+    } else {
+        // If no tables are specified, add all tables
+        if err := resourceRedshiftDatashareAddAllTables(tx, shareName, schemaName); err != nil {
+            return err
+        }
+    }
+
+    // Add functions to the schema
+    if err := resourceRedshiftDatashareAddAllFunctions(tx, shareName, schemaName); err != nil {
+        return err
+    }
+
+    return nil
+}
+
+
+func resourceRedshiftDatashareAddTable(tx *sql.Tx, shareName string, schemaName string, tableName string) error {
+    query := fmt.Sprintf("ALTER DATASHARE %s ADD TABLE %s.%s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+    log.Printf("[DEBUG] %s\n", query)
+    _, err := tx.Exec(query)
+    return err
 }
 
 func resourceRedshiftDatashareAddSchema(tx *sql.Tx, shareName string, schemaName string) error {
@@ -208,18 +257,45 @@ func resourceRedshiftDatashareAddAllTables(tx *sql.Tx, shareName string, schemaN
 	return err
 }
 
-func removeSchemaFromDatashare(tx *sql.Tx, shareName string, schemaName string) error {
-	err := resourceRedshiftDatashareRemoveAllFunctions(tx, shareName, schemaName)
-	if err != nil {
-		return err
-	}
-	err = resourceRedshiftDatashareRemoveAllTables(tx, shareName, schemaName)
-	if err != nil {
-		return err
-	}
-	err = resourceRedshiftDatashareRemoveSchema(tx, shareName, schemaName)
-	return err
+func resourceRedshiftDatashareRemoveTable(tx *sql.Tx, shareName string, schemaName string, tableName string) error {
+    query := fmt.Sprintf("ALTER DATASHARE %s REMOVE TABLE %s.%s", 
+        pq.QuoteIdentifier(shareName), 
+        pq.QuoteIdentifier(schemaName), 
+        pq.QuoteIdentifier(tableName))
+    log.Printf("[DEBUG] %s\n", query)
+    _, err := tx.Exec(query)
+    return err
 }
+
+func removeSchemaFromDatashare(tx *sql.Tx, shareName string, schema map[string]interface{}) error {
+    schemaName, ok := schema["schema_name"].(string)
+    if !ok || schemaName == "" {
+        return fmt.Errorf("schema_name is required and must be a string")
+    }
+
+    if tables, ok := schema["tables"].([]string); ok && len(tables) > 0 {
+        // Remove specific tables
+        for _, table := range tables {
+            if err := resourceRedshiftDatashareRemoveTable(tx, shareName, schemaName, table); err != nil {
+                return err
+            }
+        }
+    } else {
+        // If no specific tables were specified, remove all tables
+        if err := resourceRedshiftDatashareRemoveAllTables(tx, shareName, schemaName); err != nil {
+            return err
+        }
+    }
+
+    if err := resourceRedshiftDatashareRemoveAllFunctions(tx, shareName, schemaName); err != nil {
+        return err
+    }
+
+    return resourceRedshiftDatashareRemoveSchema(tx, shareName, schemaName)
+}
+
+
+
 
 func resourceRedshiftDatashareRemoveAllFunctions(tx *sql.Tx, shareName string, schemaName string) error {
 	query := fmt.Sprintf("ALTER DATASHARE %s REMOVE ALL FUNCTIONS IN SCHEMA %s", pq.QuoteIdentifier(shareName), pq.QuoteIdentifier(schemaName))
@@ -301,32 +377,76 @@ func resourceRedshiftDatashareRead(db *DBConnection, d *schema.ResourceData) err
 }
 
 func readDatashareSchemas(tx *sql.Tx, shareName string, d *schema.ResourceData) error {
-	query := `
-	SELECT
-		object_name
-	FROM svv_datashare_objects
-	WHERE share_type = 'OUTBOUND'
-	AND object_type = 'schema'
-	AND share_name = $1
-`
-	log.Printf("[DEBUG] %s, $1=%s\n", query, shareName)
-	rows, err := tx.Query(query, shareName)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+    // Query to get schemas in the datashare
+    schemaQuery := `
+    SELECT
+        object_name
+    FROM svv_datashare_objects
+    WHERE share_type = 'OUTBOUND'
+    AND object_type = 'schema'
+    AND share_name = $1
+    `
+    log.Printf("[DEBUG] %s, $1=%s\n", schemaQuery, shareName)
+    schemaRows, err := tx.Query(schemaQuery, shareName)
+    if err != nil {
+        return err
+    }
+    defer schemaRows.Close()
 
-	schemas := schema.NewSet(schema.HashString, nil)
-	for rows.Next() {
-		var schemaName string
-		if err = rows.Scan(&schemaName); err != nil {
-			return err
-		}
-		schemas.Add(schemaName)
-	}
-	d.Set(dataShareSchemasAttr, schemas)
-	return nil
+    schemas := schema.NewSet(schema.HashString, nil)
+    for schemaRows.Next() {
+        var schemaName string
+        if err = schemaRows.Scan(&schemaName); err != nil {
+            return err
+        }
+        // Fetch tables for this schema
+        tables, err := readDatashareTables(tx, shareName, schemaName)
+        if err != nil {
+            return err
+        }
+
+        schemaData := map[string]interface{}{
+            "schema_name": schemaName,
+            "tables":      tables,
+        }
+
+        schemas.Add(schemaData)
+    }
+
+    d.Set(dataShareSchemasAttr, schemas)
+    return nil
 }
+
+func readDatashareTables(tx *sql.Tx, shareName string, schemaName string) (*schema.Set, error) {
+    // Query to get tables in the specific schema of the datashare
+    tableQuery := `
+    SELECT
+        object_name
+    FROM svv_datashare_objects
+    WHERE share_type = 'OUTBOUND'
+    AND object_type = 'table'
+    AND share_name = $1
+    AND schema_name = $2
+    `
+    log.Printf("[DEBUG] %s, $1=%s, $2=%s\n", tableQuery, shareName, schemaName)
+    tableRows, err := tx.Query(tableQuery, shareName, schemaName)
+    if err != nil {
+        return nil, err
+    }
+    defer tableRows.Close()
+
+    tables := schema.NewSet(schema.HashString, nil)
+    for tableRows.Next() {
+        var tableName string
+        if err = tableRows.Scan(&tableName); err != nil {
+            return nil, err
+        }
+        tables.Add(tableName)
+    }
+
+    return tables, nil
+}
+
 
 func resourceRedshiftDatashareUpdate(db *DBConnection, d *schema.ResourceData) error {
 	tx, err := startTransaction(db.client, "")
@@ -407,12 +527,12 @@ func setDatashareSchemas(tx *sql.Tx, d *schema.ResourceData) error {
 
 	shareName := d.Get(dataShareNameAttr).(string)
 	for _, s := range add.List() {
-		if err := addSchemaToDatashare(tx, shareName, s.(string)); err != nil {
+		if err := addSchemaToDatashare(tx, shareName, s.(map[string]interface{})); err != nil {
 			return err
 		}
 	}
 	for _, s := range remove.List() {
-		if err := removeSchemaFromDatashare(tx, shareName, s.(string)); err != nil {
+		if err := removeSchemaFromDatashare(tx, shareName, s.(map[string]interface{})); err != nil {
 			return err
 		}
 	}

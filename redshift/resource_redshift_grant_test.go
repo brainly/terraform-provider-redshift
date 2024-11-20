@@ -252,7 +252,7 @@ func TestAccRedshiftGrant_BasicSchema(t *testing.T) {
 		  schema = redshift_schema.schema.name
 		
 		  object_type = "schema"
-		  privileges = ["create", "usage"]
+		  privileges = ["create", "usage", "alter"]
 		}
 		
 		resource "redshift_grant" "grant_user" {
@@ -260,7 +260,7 @@ func TestAccRedshiftGrant_BasicSchema(t *testing.T) {
 		  schema = redshift_schema.schema.name
 		  
 		  object_type = "schema"
-		  privileges = ["create", "usage"]
+		  privileges = ["create", "usage", "alter"]
 		}
 		`, userName, groupName, schemaName)
 		resource.Test(t, resource.TestCase{

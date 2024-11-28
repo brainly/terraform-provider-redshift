@@ -33,7 +33,6 @@ func redshiftRole() *schema.Resource {
 			roleNameAttr: {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     true,
 				Description:  "The name of the role.",
 				ValidateFunc: validation.StringMatch(regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$"), "Invalid role name format."),
 			},
@@ -41,10 +40,11 @@ func redshiftRole() *schema.Resource {
 	}
 }
 
+// Create a new Redshift role
 func resourceRedshiftRoleCreate(db *DBConnection, d *schema.ResourceData) error {
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer deferredRollback(tx)
 
@@ -55,8 +55,12 @@ func resourceRedshiftRoleCreate(db *DBConnection, d *schema.ResourceData) error 
 		return fmt.Errorf("error creating Redshift role %s: %w", roleName, err)
 	}
 
-	// Use role name as the ID
-	d.SetId(roleName)
+	var roleID string
+	// Retrieve the role ID
+	if err := tx.QueryRow("SELECT role_id FROM svv_roles WHERE role_name = $1", roleName).Scan(&roleID); err != nil {
+		return fmt.Errorf("failed to retrieve role_id for role %q: %w", roleName, err)
+	}
+	d.SetId(roleID)
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("could not commit transaction: %w", err)
@@ -65,31 +69,32 @@ func resourceRedshiftRoleCreate(db *DBConnection, d *schema.ResourceData) error 
 	return resourceRedshiftRoleRead(db, d)
 }
 
+// Read a Redshift role's information
 func resourceRedshiftRoleRead(db *DBConnection, d *schema.ResourceData) error {
-	roleName := d.Id()
+	roleID := d.Id()
 
-	var exists bool
+	var roleName string
 	query := `
-SELECT EXISTS (
-	SELECT 1
-	FROM svv_roles
-	WHERE role_name = $1
-)`
+SELECT role_name
+FROM svv_roles
+WHERE role_id = $1
+`
 
-	err := db.QueryRow(query, roleName).Scan(&exists)
+	err := db.QueryRow(query, roleID).Scan(&roleName)
 	switch {
-	case err == sql.ErrNoRows || !exists:
+	case err == sql.ErrNoRows:
 		// Role not found, remove from state
 		d.SetId("")
 		return nil
 	case err != nil:
-		return fmt.Errorf("error reading Redshift role %s: %w", roleName, err)
+		return fmt.Errorf("error reading Redshift role  %q: %w", roleName, err)
 	}
 
 	d.Set(roleNameAttr, roleName)
 	return nil
 }
 
+// Update a Redshift role (currently supports renaming only)
 func resourceRedshiftRoleUpdate(db *DBConnection, d *schema.ResourceData) error {
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
@@ -97,17 +102,16 @@ func resourceRedshiftRoleUpdate(db *DBConnection, d *schema.ResourceData) error 
 	}
 	defer deferredRollback(tx)
 
-	// Currently, only the name change is supported.
 	if d.HasChange(roleNameAttr) {
 		oldName, newName := d.GetChange(roleNameAttr)
 		sql := fmt.Sprintf("ALTER ROLE %s RENAME TO %s", pq.QuoteIdentifier(oldName.(string)), pq.QuoteIdentifier(newName.(string)))
 
 		if _, err := tx.Exec(sql); err != nil {
-			return fmt.Errorf("error renaming Redshift role %s to %s: %w", oldName, newName, err)
+			return fmt.Errorf("error renaming Redshift role from %q to %q: %w", oldName, newName, err)
 		}
 
-		// Update ID to the new role name for consistency
-		d.SetId(newName.(string))
+		// Update the role name in the state
+		d.Set(roleNameAttr, newName)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -117,6 +121,8 @@ func resourceRedshiftRoleUpdate(db *DBConnection, d *schema.ResourceData) error 
 	return resourceRedshiftRoleRead(db, d)
 }
 
+// Delete a Redshift role
+// Delete a Redshift role
 func resourceRedshiftRoleDelete(db *DBConnection, d *schema.ResourceData) error {
 	tx, err := startTransaction(db.client, "")
 	if err != nil {
@@ -124,13 +130,16 @@ func resourceRedshiftRoleDelete(db *DBConnection, d *schema.ResourceData) error 
 	}
 	defer deferredRollback(tx)
 
-	roleName := d.Id()
-	sql := fmt.Sprintf("DROP ROLE %s", pq.QuoteIdentifier(roleName))
+	// Get the role name from Terraform state
+	roleName := d.Get(roleNameAttr).(string)
 
+	// Execute DROP ROLE SQL statement
+	sql := fmt.Sprintf("DROP ROLE %s", pq.QuoteIdentifier(roleName))
 	if _, err := tx.Exec(sql); err != nil {
-		return fmt.Errorf("error deleting Redshift role %s: %w", roleName, err)
+		return fmt.Errorf("error deleting Redshift role %q: %w", roleName, err)
 	}
 
+	// Commit the transaction
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("could not commit transaction: %w", err)
 	}
@@ -140,20 +149,22 @@ func resourceRedshiftRoleDelete(db *DBConnection, d *schema.ResourceData) error 
 	return nil
 }
 
+// Check if a Redshift role exists
 func resourceRedshiftRoleExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	roleName := d.Id()
+	roleID := d.Id()
 
 	var exists bool
 	query := `
 SELECT EXISTS (
 	SELECT 1
 	FROM svv_roles
-	WHERE role_name = $1
-)`
+	WHERE role_id = $1
+)
+`
 
-	err := db.QueryRow(query, roleName).Scan(&exists)
+	err := db.QueryRow(query, roleID).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("error checking existence of Redshift role %s: %w", roleName, err)
+		return false, fmt.Errorf("error checking existence of Redshift role with ID %q: %w", roleID, err)
 	}
 
 	return exists, nil

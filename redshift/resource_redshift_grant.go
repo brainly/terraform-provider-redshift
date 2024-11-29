@@ -31,6 +31,7 @@ var grantAllowedObjectTypes = []string{
 	"function",
 	"procedure",
 	"language",
+	"role_assignment",
 }
 
 var grantObjectTypesCodes = map[string][]string{
@@ -280,64 +281,64 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 }
 
 func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
-    log.Printf("[DEBUG] Reading schema grants")
+	log.Printf("[DEBUG] Reading schema grants")
 
-    schemaName := d.Get(grantSchemaAttr).(string)
-    var entityName, entityType string
-    var query string
-    var queryArgs []interface{}
+	schemaName := d.Get(grantSchemaAttr).(string)
+	var entityName, entityType string
+	var query string
+	var queryArgs []interface{}
 
-    // Determine the type of entity and construct the query
-    if userName, isUser := d.GetOk(grantUserAttr); isUser {
-        entityName = userName.(string)
-        entityType = "user"
-    } else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
-        entityName = groupName.(string)
-        entityType = "group"
-    } else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
-        entityName = roleName.(string)
-        entityType = "role"
-    } else if isGrantToPublic(d) {
-        entityName = "public"
-        entityType = "public"
-    } else {
-        return fmt.Errorf("No valid user, group, or role specified")
-    }
+	// Determine the type of entity and construct the query
+	if userName, isUser := d.GetOk(grantUserAttr); isUser {
+		entityName = userName.(string)
+		entityType = "user"
+	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		entityName = groupName.(string)
+		entityType = "group"
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		entityName = roleName.(string)
+		entityType = "role"
+	} else if isGrantToPublic(d) {
+		entityName = "public"
+		entityType = "public"
+	} else {
+		return fmt.Errorf("No valid user, group, or role specified")
+	}
 
-    query = `
+	query = `
         SELECT privilege_type
         FROM svv_schema_privileges
         WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = $3
     `
-    queryArgs = []interface{}{schemaName, entityName, entityType}
+	queryArgs = []interface{}{schemaName, entityName, entityType}
 
-    // Execute the query and process the results
-    rows, err := db.Query(query, queryArgs...)
-    if err != nil {
-        return fmt.Errorf("Error querying schema privileges: %w", err)
-    }
-    defer rows.Close()
+	// Execute the query and process the results
+	rows, err := db.Query(query, queryArgs...)
+	if err != nil {
+		return fmt.Errorf("Error querying schema privileges: %w", err)
+	}
+	defer rows.Close()
 
-    privileges := []string{}
-    for rows.Next() {
-        var privilegeType string
-        if err := rows.Scan(&privilegeType); err != nil {
-            return fmt.Errorf("Error scanning privilege type: %w", err)
-        }
-        privileges = append(privileges, strings.ToLower(privilegeType))
-    }
+	privileges := []string{}
+	for rows.Next() {
+		var privilegeType string
+		if err := rows.Scan(&privilegeType); err != nil {
+			return fmt.Errorf("Error scanning privilege type: %w", err)
+		}
+		privileges = append(privileges, strings.ToLower(privilegeType))
+	}
 
-    log.Printf("[DEBUG] Collected schema '%s' privileges for %s: %v", schemaName, entityName, privileges)
-    d.Set(grantPrivilegesAttr, schema.NewSet(schema.HashString, convertToInterfaceSlice(privileges)))
-    return nil
+	log.Printf("[DEBUG] Collected schema '%s' privileges for %s: %v", schemaName, entityName, privileges)
+	d.Set(grantPrivilegesAttr, schema.NewSet(schema.HashString, convertToInterfaceSlice(privileges)))
+	return nil
 }
 
 func convertToInterfaceSlice(slice []string) []interface{} {
-    result := make([]interface{}, len(slice))
-    for i, v := range slice {
-        result[i] = v
-    }
-    return result
+	result := make([]interface{}, len(slice))
+	for i, v := range slice {
+		result[i] = v
+	}
+	return result
 }
 
 // Switching readTableGrants to svv_relation_privileges
@@ -639,7 +640,7 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 		fromEntityName = "PUBLIC"
 	}
 
-	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {	
+	switch strings.ToUpper(d.Get(grantObjectTypeAttr).(string)) {
 	case "DATABASE":
 		query = fmt.Sprintf(
 			"REVOKE ALL PRIVILEGES ON DATABASE %s FROM %s %s",

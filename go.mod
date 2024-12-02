@@ -1,4 +1,4 @@
-module github.com/josep-pla-jt/terraform-redshift-provider
+module redshifttf
 
 go 1.17
 

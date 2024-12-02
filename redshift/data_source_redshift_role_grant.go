@@ -14,16 +14,16 @@ func dataSourceRedshiftRoleGrant() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"user": {
-				Type:         schema.TypeString,
-				Optional:     true,
+				Type:          schema.TypeString,
+				Optional:      true,
 				ConflictsWith: []string{"role"},
-				Description:  "The name of the user for which to retrieve granted roles.",
+				Description:   "The name of the user for which to retrieve granted roles.",
 			},
 			"role": {
-				Type:         schema.TypeString,
-				Optional:     true,
+				Type:          schema.TypeString,
+				Optional:      true,
 				ConflictsWith: []string{"user"},
-				Description:  "The name of the role for which to retrieve granted roles.",
+				Description:   "The name of the role for which to retrieve granted roles.",
 			},
 			"granted_roles": {
 				Type:        schema.TypeList,

@@ -15,6 +15,7 @@ import (
 const (
 	grantUserAttr       = "user"
 	grantGroupAttr      = "group"
+	grantRoleAttr       = "role"
 	grantSchemaAttr     = "schema"
 	grantObjectTypeAttr = "object_type"
 	grantObjectsAttr    = "objects"
@@ -30,6 +31,7 @@ var grantAllowedObjectTypes = []string{
 	"function",
 	"procedure",
 	"language",
+	"role_assignment",
 }
 
 var grantObjectTypesCodes = map[string][]string{
@@ -61,7 +63,7 @@ Defines access privileges for users and  groups. Privileges include access optio
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
-				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr, grantRoleAttr},
 				Description:  "The name of the user to grant privileges on. Either `user` or `group` parameter must be set.",
 				ValidateFunc: validation.StringDoesNotMatch(regexp.MustCompile("^(?i)public$"), "User name cannot be 'public'. To use GRANT ... TO PUBLIC set the group name to 'public' instead."),
 			},
@@ -69,7 +71,7 @@ Defines access privileges for users and  groups. Privileges include access optio
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
-				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr, grantRoleAttr},
 				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` or `PUBLIC` (it is case insensitive in this case) will result in a `GRANT ... TO PUBLIC` statement.",
 				StateFunc: func(val interface{}) string {
 					name := val.(string)
@@ -78,6 +80,13 @@ Defines access privileges for users and  groups. Privileges include access optio
 					}
 					return name
 				},
+			},
+			grantRoleAttr: {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr, grantRoleAttr},
+				Description:  "The name of the role to grant privileges to.",
 			},
 			grantSchemaAttr: {
 				Type:        schema.TypeString,
@@ -272,193 +281,148 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 }
 
 func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
-	var entityName, query string
-	var schemaCreate, schemaUsage bool
-
-	_, isUser := d.GetOk(grantUserAttr)
-	schemaName := d.Get(grantSchemaAttr).(string)
-
-	if isUser {
-		entityName = d.Get(grantUserAttr).(string)
-		query = `
-	SELECT
-		decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
-		decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as usage
-	FROM pg_namespace ns, pg_user u
-	WHERE
-		ns.nspname=$1 
-		AND u.usename=$2
-	`
-	} else {
-		entityName = d.Get(grantGroupAttr).(string)
-		query = `
-  SELECT
-    decode(charindex('C',split_part(split_part(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), 0,0,1) as create,
-    decode(charindex('U',split_part(split_part(replace(array_to_string(ns.nspacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), 0,0,1) as usage
-  FROM pg_namespace ns, pg_group gr
-  WHERE
-    ns.nspname=$1 
-    AND gr.groname=$2
-`
-	}
-
-	queryArgs := []interface{}{schemaName, entityName}
-
-	// Handle GRANT TO PUBLIC
-	if isGrantToPublic(d) {
-		query = `
-			SELECT
-				decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
-				decode(charindex('U',split_part(split_part(regexp_replace(replace(array_to_string(ns.nspacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as usage
-			FROM pg_namespace ns
-			WHERE
-				ns.nspname=$1
-			`
-		queryArgs = []interface{}{schemaName}
-	}
-
-	if err := db.QueryRow(query, queryArgs...).Scan(&schemaCreate, &schemaUsage); err != nil {
-		return err
-	}
-
-	privileges := []string{}
-	appendIfTrue(schemaCreate, "create", &privileges)
-	appendIfTrue(schemaUsage, "usage", &privileges)
-
-	log.Printf("[DEBUG] Collected schema '%s' privileges for %s: %v", schemaName, entityName, privileges)
-
-	d.Set(grantPrivilegesAttr, privileges)
-
-	return nil
-}
-
-func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
-	log.Printf("[DEBUG] Reading table grants")
-	var entityName, query string
-	_, isUser := d.GetOk(grantUserAttr)
-
-	if isUser {
-		entityName = d.Get(grantUserAttr).(string)
-		query = `
-  SELECT
-    relname,
-    decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as select,
-    decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as update,
-    decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as insert,
-    decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as delete,
-    decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as drop,
-    decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as references,
-    decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as rule,
-    decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'group '||u.usename), u.usename||'=', 2) ,'/',1)),null,0,0,0,1) as trigger
-  FROM pg_user u, pg_class cl
-  JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
-  WHERE
-    cl.relkind = ANY($1)
-    AND u.usename=$2
-    AND nsp.nspname=$3
-`
-	} else {
-		entityName = d.Get(grantGroupAttr).(string)
-		query = `
-  SELECT
-    relname,
-    decode(charindex('r',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as select,
-    decode(charindex('w',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as update,
-    decode(charindex('a',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as insert,
-    decode(charindex('d',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as delete,
-    decode(charindex('D',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as drop,
-    decode(charindex('x',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as references,
-    decode(charindex('R',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as rule,
-    decode(charindex('t',split_part(split_part(replace(array_to_string(relacl, '|'), '"', ''),'group ' || gr.groname || '=',2 ) ,'/',1)), null,0, 0,0, 1) as trigger
-  FROM pg_group gr, pg_class cl
-  JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
-  WHERE
-    cl.relkind = ANY($1)
-    AND gr.groname=$2
-    AND nsp.nspname=$3
-`
-	}
+	log.Printf("[DEBUG] Reading schema grants")
 
 	schemaName := d.Get(grantSchemaAttr).(string)
-	objects := d.Get(grantObjectsAttr).(*schema.Set)
-	queryArgs := []interface{}{
-		pq.Array(grantObjectTypesCodes["table"]), entityName, schemaName,
+	var entityName, entityType string
+	var query string
+	var queryArgs []interface{}
+
+	// Determine the type of entity and construct the query
+	if userName, isUser := d.GetOk(grantUserAttr); isUser {
+		entityName = userName.(string)
+		entityType = "user"
+	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		entityName = groupName.(string)
+		entityType = "group"
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		entityName = roleName.(string)
+		entityType = "role"
+	} else if isGrantToPublic(d) {
+		entityName = "public"
+		entityType = "public"
+	} else {
+		return fmt.Errorf("No valid user, group, or role specified")
 	}
 
-	if isGrantToPublic(d) {
-		query = `
-		SELECT
-		  relname,
-		  decode(charindex('r',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as select,
-		  decode(charindex('w',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as update,
-		  decode(charindex('a',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as insert,
-		  decode(charindex('d',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as delete,
-		  decode(charindex('D',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as drop,
-		  decode(charindex('x',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as references,
-		  decode(charindex('R',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as rule,
-		  decode(charindex('t',split_part(split_part(regexp_replace(replace(array_to_string(relacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)),null,0,0,0,1) as trigger
-		FROM pg_class cl
-		JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
-		WHERE
-		  cl.relkind = ANY($1)
-		  AND nsp.nspname=$2
-	  `
-		queryArgs = []interface{}{
-			pq.Array(grantObjectTypesCodes["table"]), schemaName,
-		}
-	}
+	query = `
+        SELECT privilege_type
+        FROM svv_schema_privileges
+        WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = $3
+    `
+	queryArgs = []interface{}{schemaName, entityName, entityType}
 
+	// Execute the query and process the results
 	rows, err := db.Query(query, queryArgs...)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error querying schema privileges: %w", err)
 	}
 	defer rows.Close()
 
+	privileges := []string{}
 	for rows.Next() {
-		var objName string
-		var tableSelect, tableUpdate, tableInsert, tableDelete, tableDrop, tableReferences, tableRule, tableTrigger bool
+		var privilegeType string
+		if err := rows.Scan(&privilegeType); err != nil {
+			return fmt.Errorf("Error scanning privilege type: %w", err)
+		}
+		privileges = append(privileges, strings.ToLower(privilegeType))
+	}
 
-		if err := rows.Scan(&objName, &tableSelect, &tableUpdate, &tableInsert, &tableDelete, &tableDrop, &tableReferences, &tableRule, &tableTrigger); err != nil {
-			return err
+	log.Printf("[DEBUG] Collected schema '%s' privileges for %s: %v", schemaName, entityName, privileges)
+	d.Set(grantPrivilegesAttr, schema.NewSet(schema.HashString, convertToInterfaceSlice(privileges)))
+	return nil
+}
+
+func convertToInterfaceSlice(slice []string) []interface{} {
+	result := make([]interface{}, len(slice))
+	for i, v := range slice {
+		result[i] = v
+	}
+	return result
+}
+
+// Switching readTableGrants to svv_relation_privileges
+func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
+	log.Printf("[DEBUG] Reading table grants")
+	var entityName, entityType, query string
+	var queryArgs []interface{}
+	schemaName := d.Get(grantSchemaAttr).(string)
+	objects := d.Get(grantObjectsAttr).(*schema.Set)
+
+	// Determine the entity type: user, group, role, or public
+	if userName, isUser := d.GetOk(grantUserAttr); isUser {
+		entityName = userName.(string)
+		query = `
+		SELECT relation_name, privilege_type
+		FROM svv_relation_privileges
+		WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = 'user'
+		`
+		queryArgs = []interface{}{schemaName, entityName}
+	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		entityName = groupName.(string)
+		query = `
+		SELECT relation_name, privilege_type
+		FROM svv_relation_privileges
+		WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = 'group'
+		`
+		queryArgs = []interface{}{schemaName, entityName}
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		entityName = roleName.(string)
+		entityType = "role"
+		query = `
+		SELECT relation_name, privilege_type
+		FROM svv_relation_privileges
+		WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = $3
+		`
+		queryArgs = []interface{}{schemaName, entityName, entityType}
+	} else if isGrantToPublic(d) {
+		entityName = "public"
+		query = `
+		SELECT relation_name, privilege_type
+		FROM svv_relation_privileges
+		WHERE namespace_name = $1 AND identity_name = 'public'
+		`
+		queryArgs = []interface{}{schemaName}
+	} else {
+		return fmt.Errorf("No valid user, group, or role specified")
+	}
+
+	// Execute query and process results
+	rows, err := db.Query(query, queryArgs...)
+	if err != nil {
+		return fmt.Errorf("Error querying table privileges: %w", err)
+	}
+	defer rows.Close()
+
+	privilegesMap := make(map[string]*schema.Set)
+	for rows.Next() {
+		var objName, privilegeType string
+		if err := rows.Scan(&objName, &privilegeType); err != nil {
+			return fmt.Errorf("Error scanning table privileges: %w", err)
 		}
 
+		// Filter objects if `grant_objects` is specified
 		if objects.Len() > 0 && !objects.Contains(objName) {
 			continue
 		}
 
-		privilegesSet := schema.NewSet(schema.HashString, nil)
-		if tableSelect {
-			privilegesSet.Add("select")
+		if _, exists := privilegesMap[objName]; !exists {
+			privilegesMap[objName] = schema.NewSet(schema.HashString, nil)
 		}
-		if tableUpdate {
-			privilegesSet.Add("update")
-		}
-		if tableInsert {
-			privilegesSet.Add("insert")
-		}
-		if tableDelete {
-			privilegesSet.Add("delete")
-		}
-		if tableDrop {
-			privilegesSet.Add("drop")
-		}
-		if tableReferences {
-			privilegesSet.Add("references")
-		}
-		if tableRule {
-			privilegesSet.Add("rule")
-		}
-		if tableTrigger {
-			privilegesSet.Add("trigger")
-		}
-
-		if !privilegesSet.Equal(d.Get(grantPrivilegesAttr).(*schema.Set)) {
-			d.Set(grantPrivilegesAttr, privilegesSet)
-			break
-		}
-
-		log.Printf("[DEBUG] Collected table grants; table: '%v'; privileges: %v; for: %s", objName, privilegesSet.List(), entityName)
+		privilegesMap[objName].Add(strings.ToLower(privilegeType))
 	}
+
+	// Flatten results into the expected format
+	privilegesList := []map[string]interface{}{}
+	for objName, privileges := range privilegesMap {
+		privilegesList = append(privilegesList, map[string]interface{}{
+			"object":     objName,
+			"privileges": privileges.List(),
+		})
+	}
+
+	log.Printf("[DEBUG] Collected table grants for %s: %v", entityName, privilegesList)
+	d.Set(grantPrivilegesAttr, privilegesList)
 
 	return nil
 }
@@ -665,8 +629,11 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 		entityName = groupName.(string)
 	} else if userName, isUser := d.GetOk(grantUserAttr); isUser {
 		entityName = userName.(string)
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		toWhomIndicator = "ROLE"
+		entityName = roleName.(string)
 	}
-
+	log.Printf("[DEBUG] toWhomIndicator: %s, entityName: %s", toWhomIndicator, entityName)
 	fromEntityName := pq.QuoteIdentifier(entityName)
 	if isGrantToPublic(d) {
 		toWhomIndicator = ""
@@ -751,8 +718,11 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 		entityName = groupName.(string)
 	} else if userName, isUser := d.GetOk(grantUserAttr); isUser {
 		entityName = userName.(string)
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		toWhomIndicator = "ROLE"
+		entityName = roleName.(string)
 	}
-
+	log.Printf("[DEBUG] toWhomIndicator: %s, entityName: %s", toWhomIndicator, entityName)
 	toEntityName := pq.QuoteIdentifier(entityName)
 	if isGrantToPublic(d) {
 		toWhomIndicator = ""

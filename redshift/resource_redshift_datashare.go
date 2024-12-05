@@ -335,20 +335,23 @@ func resourceRedshiftDatashareUpdate(db *DBConnection, d *schema.ResourceData) e
 	}
 	defer deferredRollback(tx)
 
+	// Update owner within transaction
 	if err := setDatashareOwner(tx, d); err != nil {
 		return err
 	}
 
-	if err := setDatasharePubliclyAccessble(tx, d); err != nil {
-		return err
-	}
-
+	// Update schemas within transaction
 	if err := setDatashareSchemas(tx, d); err != nil {
 		return err
 	}
 
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	// Update publicly accessible outside transaction
+	if err := setDatasharePubliclyAccessible(db, d); err != nil {
+		return err
 	}
 
 	return resourceRedshiftDatashareRead(db, d)
@@ -375,7 +378,7 @@ func setDatashareOwner(tx *sql.Tx, d *schema.ResourceData) error {
 	return nil
 }
 
-func setDatasharePubliclyAccessble(tx *sql.Tx, d *schema.ResourceData) error {
+func setDatasharePubliclyAccessible(db *DBConnection, d *schema.ResourceData) error {
 	if !d.HasChange(dataSharePublicAccessibleAttr) {
 		return nil
 	}
@@ -384,8 +387,8 @@ func setDatasharePubliclyAccessble(tx *sql.Tx, d *schema.ResourceData) error {
 	newValue := d.Get(dataSharePublicAccessibleAttr).(bool)
 	query := fmt.Sprintf("ALTER DATASHARE %s SET PUBLICACCESSIBLE %t", pq.QuoteIdentifier(shareName), newValue)
 	log.Printf("[DEBUG] %s\n", query)
-	if _, err := tx.Exec(query); err != nil {
-		return fmt.Errorf("Error updating datashare PUBLICACCESSBILE :%w", err)
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("Error updating datashare PUBLICACCESSIBLE: %w", err)
 	}
 	return nil
 }

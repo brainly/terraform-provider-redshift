@@ -625,7 +625,7 @@ resource "redshift_schema" "schema_configured" {
   name = "schema_configured"
   quota = 15
   cascade_on_delete = false
-  owner = upper(redshift_user.schema_test_user1.name)
+  owner = redshift_user.schema_test_user1.name
 }
 
 resource "redshift_schema" "fancy_name" {

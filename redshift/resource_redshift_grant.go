@@ -361,10 +361,10 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	} else if isGrantToPublic(d) {
 		entityName = "public"
 		query = `
-			SELECT relation_name, privilege_type
-			FROM svv_relation_privileges
-			WHERE namespace_name = $1 AND identity_name = 'public'
-			`
+		SELECT relation_name, privilege_type
+		FROM svv_relation_privileges
+		WHERE namespace_name = $1 AND identity_name = 'public'
+		`
 		queryArgs = []interface{}{schemaName}
 	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
 		entityName = groupName.(string)
@@ -394,7 +394,7 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 	}
 	defer rows.Close()
 
-	privilegesMap := make(map[string]*schema.Set)
+	privilegesSet := schema.NewSet(schema.HashString, nil)
 	for rows.Next() {
 		var objName, privilegeType string
 		if err := rows.Scan(&objName, &privilegeType); err != nil {
@@ -406,21 +406,11 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 			continue
 		}
 
-		if _, exists := privilegesMap[objName]; !exists {
-			privilegesMap[objName] = schema.NewSet(schema.HashString, nil)
-		}
-		privilegesMap[objName].Add(strings.ToLower(privilegeType))
+		privilegesSet.Add(strings.ToLower(privilegeType))
 	}
 
-	// Flatten results into the expected format
-	privilegesList := []map[string]interface{}{}
-	for objName, privileges := range privilegesMap {
-		privilegesList = append(privilegesList, map[string]interface{}{
-			"object":     objName,
-			"privileges": privileges.List(),
-		})
-	}
-
+	// Flatten privileges into a list
+	privilegesList := privilegesSet.List()
 	log.Printf("[DEBUG] Collected table grants for %s: %v", entityName, privilegesList)
 	d.Set(grantPrivilegesAttr, privilegesList)
 

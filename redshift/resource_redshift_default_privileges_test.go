@@ -51,7 +51,7 @@ func TestAccRedshiftDefaultPrivileges_Basic(t *testing.T) {
 		resource.Test(t, resource.TestCase{
 			PreCheck:     func() { testAccPreCheck(t) },
 			Providers:    testAccProviders,
-			CheckDestroy: testAccCheckDefaultPrivilegesDestory(defaultPrivilegesAllSchemasID, 100, "r", groupName),
+			CheckDestroy: testAccCheckDefaultPrivilegesDestroy(defaultPrivilegesAllSchemasID, 100, "r", groupName),
 			Steps: []resource.TestStep{
 				{
 					Config: config,
@@ -152,7 +152,7 @@ func TestAccRedshiftDefaultPrivileges_UpdateToRevoke(t *testing.T) {
 		resource.Test(t, resource.TestCase{
 			PreCheck:     func() { testAccPreCheck(t) },
 			Providers:    testAccProviders,
-			CheckDestroy: testAccCheckDefaultPrivilegesDestory(defaultPrivilegesAllSchemasID, 100, "r", groupName),
+			CheckDestroy: testAccCheckDefaultPrivilegesDestroy(defaultPrivilegesAllSchemasID, 100, "r", groupName),
 			Steps: []resource.TestStep{
 				{
 					Config: configInitial,
@@ -246,7 +246,7 @@ resource "redshift_default_privileges" "none" {
 	})
 }
 
-func testAccCheckDefaultPrivilegesDestory(schemaID, ownerID int, objectType, groupName string) func(*terraform.State) error {
+func testAccCheckDefaultPrivilegesDestroy(schemaID, ownerID int, objectType, groupName string) func(*terraform.State) error {
 	return func(s *terraform.State) error {
 		client := testAccProvider.Meta().(*Client)
 

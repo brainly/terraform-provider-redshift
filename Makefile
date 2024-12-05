@@ -13,7 +13,7 @@ test: fmt vet ## Run unit tests
 
 .PHONY: testacc
 testacc: fmt ## Run acceptance tests
-	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -count=1 -timeout 120m
+	TF_ACC=1  go test $(TEST) -v $(TESTARGS) -count=1 -timeout 120m
 
 .PHONY: vet
 vet: ## Run go vet command

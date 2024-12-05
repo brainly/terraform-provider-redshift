@@ -292,15 +292,15 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	if userName, isUser := d.GetOk(grantUserAttr); isUser {
 		entityName = userName.(string)
 		entityType = "user"
+	} else if isGrantToPublic(d) {
+		entityName = "public"
+		entityType = "public"
 	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
 		entityName = groupName.(string)
 		entityType = "group"
 	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
 		entityName = roleName.(string)
 		entityType = "role"
-	} else if isGrantToPublic(d) {
-		entityName = "public"
-		entityType = "public"
 	} else {
 		return fmt.Errorf("No valid user, group, or role specified")
 	}
@@ -358,6 +358,14 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = 'user'
 		`
 		queryArgs = []interface{}{schemaName, entityName}
+	} else if isGrantToPublic(d) {
+		entityName = "public"
+		query = `
+			SELECT relation_name, privilege_type
+			FROM svv_relation_privileges
+			WHERE namespace_name = $1 AND identity_name = 'public'
+			`
+		queryArgs = []interface{}{schemaName}
 	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
 		entityName = groupName.(string)
 		query = `
@@ -375,14 +383,6 @@ func readTableGrants(db *DBConnection, d *schema.ResourceData) error {
 		WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = $3
 		`
 		queryArgs = []interface{}{schemaName, entityName, entityType}
-	} else if isGrantToPublic(d) {
-		entityName = "public"
-		query = `
-		SELECT relation_name, privilege_type
-		FROM svv_relation_privileges
-		WHERE namespace_name = $1 AND identity_name = 'public'
-		`
-		queryArgs = []interface{}{schemaName}
 	} else {
 		return fmt.Errorf("No valid user, group, or role specified")
 	}
@@ -830,6 +830,7 @@ func generateGrantID(d *schema.ResourceData) string {
 	for _, object := range d.Get(grantObjectsAttr).(*schema.Set).List() {
 		parts = append(parts, object.(string))
 	}
-
+	log.Printf(strings.Join(parts, "_"))
 	return strings.Join(parts, "_")
+
 }

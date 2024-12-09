@@ -53,7 +53,7 @@ resource "redshift_datashare" "basic" {
 	]
 }
 `, schemaNameAttr, shareName, schemaCascadeOnDeleteAttr, userNameAttr, dataShareNameAttr, dataShareOwnerAttr, dataSharePublicAccessibleAttr, dataShareSchemasAttr)
-	resource.ParallelTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckRedshiftDatashareDestroy,

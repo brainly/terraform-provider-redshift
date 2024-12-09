@@ -221,62 +221,53 @@ func resourceRedshiftGrantReadImpl(db *DBConnection, d *schema.ResourceData) err
 }
 
 func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
-	var entityName, query string
-	var databaseCreate, databaseTemp bool
+	var entityName, entityType, query string
+	var queryArgs []interface{}
 
-	_, isUser := d.GetOk(grantUserAttr)
-
-	if isUser {
-		entityName = d.Get(grantUserAttr).(string)
-		query = `
-  SELECT
-    decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'group '||u.usename,'__avoidGroupPrivs__'), u.usename||'=', 2) ,'/',1)), 0,0,1) as temporary
-  FROM pg_database db, pg_user u
-  WHERE
-    db.datname=$1 
-    AND u.usename=$2
-`
+	// Determine the type of entity and construct the query
+	if userName, isUser := d.GetOk(grantUserAttr); isUser {
+		entityName = userName.(string)
+		entityType = "user"
+	} else if isGrantToPublic(d) {
+		entityName = "public"
+		entityType = "public"
+	} else if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
+		entityName = groupName.(string)
+		entityType = "group"
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		entityName = roleName.(string)
+		entityType = "role"
 	} else {
-		entityName = d.Get(grantGroupAttr).(string)
-		query = `
-  SELECT
-    decode(charindex('C',split_part(split_part(replace(array_to_string(db.datacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(replace(array_to_string(db.datacl, '|'), '"', ''),'group ' || gr.groname,2 ) ,'/',1)), 0,0,1) as temporary
-  FROM pg_database db, pg_group gr
-  WHERE
-    db.datname=$1 
-    AND gr.groname=$2
-`
+		return fmt.Errorf("No valid user, group, or role specified")
 	}
 
-	queryArgs := []interface{}{db.client.databaseName, entityName}
+	// Query `svv_database_privileges` for privileges
+	query = `
+        SELECT privilege_type
+        FROM svv_database_privileges
+        WHERE database_name = $1 AND identity_name = $2 AND identity_type = $3
+    `
+	queryArgs = []interface{}{db.client.databaseName, entityName, entityType}
 
-	// Handle GRANT TO PUBLIC
-	if isGrantToPublic(d) {
-		query = `
-  SELECT
-    decode(charindex('C',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as create,
-    decode(charindex('T',split_part(split_part(regexp_replace(replace(array_to_string(db.datacl, '|'), '"', ''),'[^|]+=','__avoidUserPrivs__'), '=', 2) ,'/',1)), 0,0,1) as temporary
-  FROM pg_database db
-  WHERE
-    db.datname=$1 
-`
-		queryArgs = []interface{}{db.client.databaseName}
+	// Execute the query and process the results
+	rows, err := db.Query(query, queryArgs...)
+	if err != nil {
+		return fmt.Errorf("Error querying database privileges: %w", err)
 	}
-
-	if err := db.QueryRow(query, queryArgs...).Scan(&databaseCreate, &databaseTemp); err != nil {
-		return err
-	}
+	defer rows.Close()
 
 	privileges := []string{}
-	appendIfTrue(databaseCreate, "create", &privileges)
-	appendIfTrue(databaseTemp, "temporary", &privileges)
+	for rows.Next() {
+		var privilegeType string
+		if err := rows.Scan(&privilegeType); err != nil {
+			return fmt.Errorf("Error scanning privilege type: %w", err)
+		}
+		privileges = append(privileges, strings.ToLower(privilegeType))
+	}
 
-	log.Printf("[DEBUG] Collected database '%s' privileges for %s: %v", db.client.databaseName, entityName, privileges)
+	log.Printf("[DEBUG] Collected database privileges for %s: %v", entityName, privileges)
 
-	d.Set(grantPrivilegesAttr, privileges)
-
+	d.Set(grantPrivilegesAttr, schema.NewSet(schema.HashString, convertToInterfaceSlice(privileges)))
 	return nil
 }
 
@@ -808,6 +799,10 @@ func generateGrantID(d *schema.ResourceData) string {
 
 	if _, isUser := d.GetOk(grantUserAttr); isUser {
 		parts = append(parts, fmt.Sprintf("un:%s", d.Get(grantUserAttr).(string)))
+	}
+
+	if _, isRole := d.GetOk(grantRoleAttr); isRole {
+		parts = append(parts, fmt.Sprintf("rn:%s", d.Get(grantRoleAttr).(string)))
 	}
 
 	objectType := fmt.Sprintf("ot:%s", d.Get(grantObjectTypeAttr).(string))

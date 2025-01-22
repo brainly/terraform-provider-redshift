@@ -274,12 +274,12 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 	var userSuperuser, userCreateDB bool
 
 	columns := []string{
-		"usename",
-		"usecreatedb",
-		"usesuper",
-		"syslogaccess",
-		`COALESCE(useconnlimit::TEXT, 'UNLIMITED')`,
-		"sessiontimeout",
+		"user_name",
+		"createdb",
+		"superuser",
+		"syslog_access",
+		`COALESCE(connection_limit::TEXT, 'UNLIMITED')`,
+		"session_timeout",
 	}
 
 	values := []interface{}{
@@ -293,7 +293,7 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 
 	useSysID := d.Id()
 
-	userSQL := fmt.Sprintf("SELECT %s FROM svl_user_info WHERE usesysid = $1", strings.Join(columns, ","))
+	userSQL := fmt.Sprintf("SELECT %s FROM svv_user_info WHERE user_id = $1", strings.Join(columns, ","))
 	err := db.QueryRow(userSQL, useSysID).Scan(values...)
 	switch {
 	case err == sql.ErrNoRows:

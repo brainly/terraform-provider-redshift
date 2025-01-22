@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -29,6 +30,8 @@ var defaultPrivilegesAllowedObjectTypes = []string{
 var defaultPrivilegesObjectTypesCodes = map[string]string{
 	"table": "r",
 }
+
+var defaultPrivilegesMutex sync.Mutex
 
 func redshiftDefaultPrivileges() *schema.Resource {
 	return &schema.Resource{
@@ -112,6 +115,9 @@ func resourceRedshiftDefaultPrivilegesDelete(db *DBConnection, d *schema.Resourc
 }
 
 func resourceRedshiftDefaultPrivilegesCreate(db *DBConnection, d *schema.ResourceData) error {
+	defaultPrivilegesMutex.Lock()
+	defer defaultPrivilegesMutex.Unlock()
+
 	privilegesSet := d.Get(defaultPrivilegesPrivilegesAttr).(*schema.Set)
 	objectType := d.Get(defaultPrivilegesObjectTypeAttr).(string)
 

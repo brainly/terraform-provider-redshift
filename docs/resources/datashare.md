@@ -43,19 +43,17 @@ resource "redshift_datashare" "my_datashare" {
 
 ### Required
 
-- **name** (String) The name of the datashare.
+- `name` (String) The name of the datashare.
 
 ### Optional
 
-- **id** (String) The ID of this resource.
-- **owner** (String) The user who owns the datashare.
-- **publicly_accessible** (Boolean) Specifies whether the datashare can be shared to clusters that are publicly accessible. Default is `false`.
-- **schemas** (Set of String) Defines which schemas are exposed to the data share.
+- `owner` (String) The user who owns the datashare.
+- `publicly_accessible` (Boolean) Specifies whether the datashare can be shared to clusters that are publicly accessible. Default is `false`.
+- `schemas` (Set of String) Defines which schemas are exposed to the data share.
 
 ### Read-Only
 
-- **created** (String) The date when datashare was created
-- **producer_account** (String) The ID for the datashare producer account.
-- **producer_namespace** (String) The unique cluster identifier for the datashare producer cluster.
-
-
+- `created` (String) The date when datashare was created
+- `id` (String) The ID of this resource.
+- `producer_account` (String) The ID for the datashare producer account.
+- `producer_namespace` (String) The unique cluster identifier for the datashare producer cluster.

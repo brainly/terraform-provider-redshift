@@ -37,7 +37,6 @@ A database contains one or more named schemas. Each schema in a database contain
 		Delete: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftSchemaDelete),
 		),
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftSchemaExists),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -400,20 +399,6 @@ A database contains one or more named schemas. Each schema in a database contain
 	}
 }
 
-func resourceRedshiftSchemaExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	var name string
-	err := db.QueryRow("SELECT nspname FROM pg_namespace WHERE oid = $1", d.Id()).Scan(&name)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
-}
-
 func resourceRedshiftSchemaRead(db *DBConnection, d *schema.ResourceData) error {
 	return resourceRedshiftSchemaReadImpl(db, d)
 }
@@ -433,9 +418,14 @@ func resourceRedshiftSchemaReadImpl(db *DBConnection, d *schema.ResourceData) er
 		ON (svv_all_schemas.database_name = $1 and pg_user_info.usesysid = svv_all_schemas.schema_owner)
 	where svv_all_schemas.database_name = $1
 	AND pg_namespace.oid = $2`, db.client.databaseName, d.Id()).Scan(&schemaName, &schemaOwner, &schemaType)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		d.SetId("")
+		return nil
+	case err != nil:
 		return err
 	}
+
 	d.Set(schemaNameAttr, schemaName)
 	d.Set(schemaOwnerAttr, schemaOwner)
 	switch {

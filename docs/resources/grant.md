@@ -50,15 +50,16 @@ resource "redshift_grant" "public" {
 
 ### Required
 
-- **object_type** (String) The Redshift object type to grant privileges on (one of: table, schema, database, function, procedure, language).
-- **privileges** (Set of String) The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group. Required when `object_type` is set to `language`.
+- `object_type` (String) The Redshift object type to grant privileges on (one of: table, schema, database, function, procedure, language).
+- `privileges` (Set of String) The list of privileges to apply as default privileges. See [GRANT command documentation](https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html) to see what privileges are available to which object type. An empty list could be provided to revoke all privileges for this user or group. Required when `object_type` is set to `language`.
 
 ### Optional
 
-- **group** (String) The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` or `PUBLIC` (it is case insensitive in this case) will result in a `GRANT ... TO PUBLIC` statement.
-- **id** (String) The ID of this resource.
-- **objects** (Set of String) The objects upon which to grant the privileges. An empty list (the default) means to grant permissions on all objects of the specified type. Ignored when `object_type` is one of (`database`, `schema`).
-- **schema** (String) The database schema to grant privileges on.
-- **user** (String) The name of the user to grant privileges on. Either `user` or `group` parameter must be set.
+- `group` (String) The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` or `PUBLIC` (it is case insensitive in this case) will result in a `GRANT ... TO PUBLIC` statement.
+- `objects` (Set of String) The objects upon which to grant the privileges. An empty list (the default) means to grant permissions on all objects of the specified type. Ignored when `object_type` is one of (`database`, `schema`).
+- `schema` (String) The database schema to grant privileges on.
+- `user` (String) The name of the user to grant privileges on. Either `user` or `group` parameter must be set.
 
+### Read-Only
 
+- `id` (String) The ID of this resource.

@@ -51,7 +51,6 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 		Delete: RedshiftResourceFunc(
 			RedshiftResourceRetryOnPQErrors(resourceRedshiftUserDelete),
 		),
-		Exists: RedshiftResourceExistsFunc(resourceRedshiftUserExists),
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -137,20 +136,6 @@ Amazon Redshift user accounts can only be created and dropped by a database supe
 			},
 		},
 	}
-}
-
-func resourceRedshiftUserExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	var name string
-	err := db.QueryRow("SELECT usename FROM pg_user_info WHERE usesysid = $1", d.Id()).Scan(&name)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
 }
 
 func resourceRedshiftUserCreate(db *DBConnection, d *schema.ResourceData) error {

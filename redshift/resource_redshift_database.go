@@ -23,7 +23,6 @@ const databaseDatashareSourceAccountAttr = "account_id"
 func redshiftDatabase() *schema.Resource {
 	return &schema.Resource{
 		Description: `Defines a local database.`,
-		Exists:      RedshiftResourceExistsFunc(resourceRedshiftDatabaseExists),
 		Create:      RedshiftResourceFunc(resourceRedshiftDatabaseCreate),
 		Read:        RedshiftResourceFunc(resourceRedshiftDatabaseRead),
 		Update:      RedshiftResourceFunc(resourceRedshiftDatabaseUpdate),
@@ -92,22 +91,6 @@ func redshiftDatabase() *schema.Resource {
 			},
 		},
 	}
-}
-
-func resourceRedshiftDatabaseExists(db *DBConnection, d *schema.ResourceData) (bool, error) {
-	var name string
-	query := "SELECT datname FROM pg_database WHERE oid = $1"
-	log.Printf("[DEBUG] check if database exists: %s\n", query)
-	err := db.QueryRow(query, d.Id()).Scan(&name)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return true, nil
 }
 
 func resourceRedshiftDatabaseCreate(db *DBConnection, d *schema.ResourceData) error {
@@ -223,7 +206,11 @@ WHERE pg_database_info.datid = $1
 	log.Printf("[DEBUG] read database: %s\n", query)
 	err := db.QueryRow(query, d.Id()).Scan(&name, &owner, &connLimit, &databaseType, &shareName, &producerAccount, &producerNamespace)
 
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		d.SetId("")
+		return nil
+	case err != nil:
 		return err
 	}
 

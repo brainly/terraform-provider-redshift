@@ -109,19 +109,6 @@ func RedshiftResourceRetryOnPQErrors(fn func(*DBConnection, *schema.ResourceData
 	}
 }
 
-func RedshiftResourceExistsFunc(fn func(*DBConnection, *schema.ResourceData) (bool, error)) func(*schema.ResourceData, interface{}) (bool, error) {
-	return func(d *schema.ResourceData, meta interface{}) (bool, error) {
-		client := meta.(*Client)
-
-		db, err := client.Connect()
-		if err != nil {
-			return false, err
-		}
-
-		return fn(db, d)
-	}
-}
-
 func isRetryablePQError(code string) bool {
 	retryable := map[string]bool{
 		pqErrorCodeConcurrent:        true,

@@ -329,7 +329,7 @@ func setDatabaseConnLimit(tx *sql.Tx, d *schema.ResourceData) error {
 func resourceRedshiftDatabaseDelete(db *DBConnection, d *schema.ResourceData) error {
 	databaseName := d.Get(databaseNameAttr).(string)
 
-	query := fmt.Sprintf("DROP DATABASE %s", pqQuoteLiteral(databaseName))
+	query := fmt.Sprintf("DROP DATABASE %s", pq.QuoteIdentifier(databaseName))
 	log.Printf("[DEBUG] dropping database %s: %s\n", databaseName, query)
 	_, err := db.Exec(query)
 	return err

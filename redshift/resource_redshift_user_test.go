@@ -290,7 +290,7 @@ func TestAccRedshiftUser_SuperuserSyslogAccess(t *testing.T) {
 			resource "redshift_user" "superuser" {
 			  name = %[1]q
 			  superuser = local.is_superuser
-			  password  = "foobar12355#"
+			  password  = "Foobar12355#"
 			  syslog_access = %[3]q
 			}
 			`, userName, test.isSuperuser, test.syslogAccess)

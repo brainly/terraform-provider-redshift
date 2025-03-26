@@ -15,6 +15,7 @@ import (
 const (
 	grantUserAttr       = "user"
 	grantGroupAttr      = "group"
+	grantRoleAttr       = "role"
 	grantSchemaAttr     = "schema"
 	grantObjectTypeAttr = "object_type"
 	grantObjectsAttr    = "objects"
@@ -30,6 +31,8 @@ var grantAllowedObjectTypes = []string{
 	"function",
 	"procedure",
 	"language",
+	"role",
+	"system",
 }
 
 var grantObjectTypesCodes = map[string][]string{
@@ -41,7 +44,7 @@ var grantObjectTypesCodes = map[string][]string{
 func redshiftGrant() *schema.Resource {
 	return &schema.Resource{
 		Description: `
-Defines access privileges for users and  groups. Privileges include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific privileges for a table, database, schema, function, procedure, language, or column.
+		Defines access permissions for a user or user group. Permissions include access options such as being able to read data in tables and views, write data, create tables, and drop tables. Use this command to give specific permissions for a table, database, schema, function, procedure, language, or column.
 `,
 		Read: RedshiftResourceFunc(resourceRedshiftGrantRead),
 		Create: RedshiftResourceFunc(
@@ -61,16 +64,16 @@ Defines access privileges for users and  groups. Privileges include access optio
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
-				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
-				Description:  "The name of the user to grant privileges on. Either `user` or `group` parameter must be set.",
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr, grantRoleAttr},
+				Description:  "The name of the user to grant privileges on. Either `user` or `group` or `role` parameter must be set.",
 				ValidateFunc: validation.StringDoesNotMatch(regexp.MustCompile("^(?i)public$"), "User name cannot be 'public'. To use GRANT ... TO PUBLIC set the group name to 'public' instead."),
 			},
 			grantGroupAttr: {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
-				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr},
-				Description:  "The name of the group to grant privileges on. Either `group` or `user` parameter must be set. Settings the group name to `public` or `PUBLIC` (it is case insensitive in this case) will result in a `GRANT ... TO PUBLIC` statement.",
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr, grantRoleAttr},
+				Description:  "The name of the group to grant privileges on. Either `user` or `group` or `role` parameter must be set. Settings the group name to `public` or `PUBLIC` (it is case insensitive in this case) will result in a `GRANT ... TO PUBLIC` statement.",
 				StateFunc: func(val interface{}) string {
 					name := val.(string)
 					if strings.ToLower(name) == grantToPublicName {
@@ -78,6 +81,13 @@ Defines access privileges for users and  groups. Privileges include access optio
 					}
 					return name
 				},
+			},
+			grantRoleAttr: {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{grantUserAttr, grantGroupAttr, grantRoleAttr},
+				Description:  "The name of the role to grant privileges on. Either `user` or `group` or `role` parameter must be set.",
 			},
 			grantSchemaAttr: {
 				Type:        schema.TypeString,
@@ -143,6 +153,46 @@ func resourceRedshiftGrantCreate(db *DBConnection, d *schema.ResourceData) error
 		return fmt.Errorf("parameter `%s` is required for objects of type language", grantObjectsAttr)
 	}
 
+	if objectType == "role" {
+		if len(objects) > 0 {
+			return fmt.Errorf("parameter `%s` is not allowed for type role", grantObjectsAttr)
+		}
+
+		_, isSchema := d.GetOk(grantSchemaAttr)
+		if isSchema {
+			return fmt.Errorf("parameter `%s` is not allowed. Instead use `%s` or `%s` for type role", grantSchemaAttr, grantRoleAttr, grantUserAttr)
+		}
+
+		if len(privileges) > 1 {
+			return fmt.Errorf("parameter `%s` must be a single privilege for type role", grantPrivilegesAttr)
+		}
+	}
+
+	if objectType == "system" {
+		_, isSchema := d.GetOk(grantSchemaAttr)
+		_, isUser := d.GetOk(grantUserAttr)
+
+		if isSchema || isUser {
+			return fmt.Errorf("parameter `%s` or `%s` are not allowed. Instead use `%s` for type system", grantSchemaAttr, grantUserAttr, grantRoleAttr)
+		}
+
+		if len(privileges) > 1 {
+			contains := func(s []string, str string) bool {
+				for _, v := range s {
+					if v == str {
+						return true
+					}
+				}
+
+				return false
+			}
+
+			if contains(privileges, "all privileges") {
+				return fmt.Errorf("parameter `%s` specifying `all privileges` is not supported", grantPrivilegesAttr)
+			}
+		}
+	}
+
 	if !validatePrivileges(privileges, objectType) {
 		return fmt.Errorf("Invalid privileges list %v for object of type %s", privileges, objectType)
 	}
@@ -206,9 +256,100 @@ func resourceRedshiftGrantReadImpl(db *DBConnection, d *schema.ResourceData) err
 		return readCallableGrants(db, d)
 	case "language":
 		return readLanguageGrants(db, d)
+	case "role":
+		return readRoleGrants(db, d)
+	case "system":
+		return readSystemGrants(db, d)
 	default:
 		return fmt.Errorf("Unsupported %s %s", grantObjectTypeAttr, objectType)
 	}
+}
+
+func readSystemGrants(db *DBConnection, d *schema.ResourceData) error {
+	roleName := d.Get(grantRoleAttr).(string)
+
+	queryArgs := []interface{}{
+		roleName,
+	}
+
+	query := `
+	SELECT lower(system_privilege) FROM svv_system_privileges WHERE identity_name = $1 and identity_type = 'role'
+	`
+
+	rows, err := db.Query(query, queryArgs...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	privilegesSet := schema.NewSet(schema.HashString, nil)
+	for rows.Next() {
+		var system_privilege string
+
+		if err := rows.Scan(&system_privilege); err != nil {
+			return err
+		}
+
+		// filter out buggy privilege name redshift support indicated this is a bug
+		if system_privilege == "unkown" {
+			continue
+		}
+
+		privilegesSet.Add(system_privilege)
+	}
+
+	if err := d.Set(grantPrivilegesAttr, privilegesSet); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func readRoleGrants(db *DBConnection, d *schema.ResourceData) error {
+	var queryArgs []interface{}
+	var query, granted string
+
+	_, isRole := d.GetOk(grantRoleAttr)
+
+	privileges := []string{}
+	for _, p := range d.Get(grantPrivilegesAttr).(*schema.Set).List() {
+		privileges = append(privileges, p.(string))
+	}
+
+	if isRole {
+		roleName := d.Get(grantRoleAttr).(string)
+
+		queryArgs = []interface{}{
+			roleName, privileges[0],
+		}
+
+		query = `
+		SELECT granted_role_name FROM svv_role_grants WHERE role_name = $1 AND granted_role_name = $2
+		`
+	} else {
+		userName := d.Get(grantUserAttr).(string)
+
+		queryArgs = []interface{}{
+			userName, privileges[0],
+		}
+
+		query = `
+		SELECT role_name FROM svv_user_grants WHERE user_name = $1 AND role_name = $2
+		`
+	}
+
+	if err := db.QueryRow(query, queryArgs...).Scan(&granted); err != nil {
+		return err
+	}
+
+	privilegesSet := schema.NewSet(schema.HashString, nil)
+	privilegesSet.Add(granted)
+
+	if err := d.Set(grantPrivilegesAttr, privilegesSet); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
@@ -216,6 +357,7 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
 	var databaseCreate, databaseTemp bool
 
 	_, isUser := d.GetOk(grantUserAttr)
+	_, isRole := d.GetOk(grantRoleAttr)
 
 	if isUser {
 		entityName = d.Get(grantUserAttr).(string)
@@ -227,6 +369,15 @@ func readDatabaseGrants(db *DBConnection, d *schema.ResourceData) error {
   WHERE
     db.datname=$1 
     AND u.usename=$2
+`
+	} else if isRole {
+		entityName = d.Get(grantRoleAttr).(string)
+		query = `
+	SELECT
+		SUM(CASE WHEN privilege_type = 'CREATE' THEN 1 ELSE 0 END) AS "create",
+		SUM(CASE WHEN privilege_type = 'TEMP' THEN 1 ELSE 0 END) AS "temporary"
+	FROM SVV_DATABASE_PRIVILEGES WHERE database_name = $1 AND identity_name = $2 AND identity_type = 'role'
+	GROUP BY identity_name
 `
 	} else {
 		entityName = d.Get(grantGroupAttr).(string)
@@ -276,6 +427,7 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 	var schemaCreate, schemaUsage bool
 
 	_, isUser := d.GetOk(grantUserAttr)
+	_, isRole := d.GetOk(grantRoleAttr)
 	schemaName := d.Get(grantSchemaAttr).(string)
 
 	if isUser {
@@ -289,6 +441,15 @@ func readSchemaGrants(db *DBConnection, d *schema.ResourceData) error {
 		ns.nspname=$1 
 		AND u.usename=$2
 	`
+	} else if isRole {
+		entityName = d.Get(grantRoleAttr).(string)
+		query = `
+	SELECT
+		SUM(CASE WHEN privilege_type = 'CREATE' THEN 1 ELSE 0 END) AS create,
+		SUM(CASE WHEN privilege_type = 'USAGE' THEN 1 ELSE 0 END) AS usage
+	FROM SVV_SCHEMA_PRIVILEGES WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = 'role'
+	GROUP BY identity_name		
+`
 	} else {
 		entityName = d.Get(grantGroupAttr).(string)
 		query = `
@@ -467,8 +628,10 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 	log.Printf("[DEBUG] Reading callable grants")
 
 	var entityName, query string
+	var queryArgs []interface{}
 
 	_, isUser := d.GetOk(grantUserAttr)
+	_, isRole := d.GetOk(grantRoleAttr)
 	schemaName := d.Get(grantSchemaAttr).(string)
 	objectType := d.Get(grantObjectTypeAttr).(string)
 
@@ -486,6 +649,23 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
 		AND u.usename=$2
 		AND pr.prokind=ANY($3)
 `
+		queryArgs = []interface{}{
+			schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]),
+		}
+
+	} else if isRole {
+		entityName = d.Get(grantRoleAttr).(string)
+		query = `
+		SELECT
+			function_name,
+			SUM(CASE WHEN privilege_type = 'EXECUTE' THEN 1 ELSE 0 END) AS execute
+		FROM svv_function_privileges WHERE namespace_name = $1 AND identity_name = $2 AND identity_type = 'role'
+		GROUP BY function_name, argument_types, identity_name
+	`
+		queryArgs = []interface{}{
+			schemaName, entityName,
+		}
+
 	} else {
 		entityName = d.Get(grantGroupAttr).(string)
 		query = `
@@ -500,12 +680,13 @@ func readCallableGrants(db *DBConnection, d *schema.ResourceData) error {
     AND gr.groname=$2
 		AND pr.prokind=ANY($3)
 `
+		queryArgs = []interface{}{
+			schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]),
+		}
 	}
 
-	callables := stripArgumentsFromCallablesDefinitions(d.Get(grantObjectsAttr).(*schema.Set))
-	queryArgs := []interface{}{
-		schemaName, entityName, pq.Array(grantObjectTypesCodes[objectType]),
-	}
+	objs := d.Get(grantObjectsAttr).(*schema.Set)
+	callables := stripArgumentsFromCallablesDefinitions(objs)
 
 	if isGrantToPublic(d) {
 		query = `
@@ -663,6 +844,9 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 	if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
 		toWhomIndicator = "GROUP"
 		entityName = groupName.(string)
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		toWhomIndicator = "ROLE"
+		entityName = roleName.(string)
 	} else if userName, isUser := d.GetOk(grantUserAttr); isUser {
 		entityName = userName.(string)
 	}
@@ -734,6 +918,23 @@ func createGrantsRevokeQuery(d *schema.ResourceData, databaseName string) string
 			toWhomIndicator,
 			fromEntityName,
 		)
+	case "ROLE":
+		privileges := []string{}
+		for _, p := range d.Get(grantPrivilegesAttr).(*schema.Set).List() {
+			privileges = append(privileges, p.(string))
+		}
+
+		query = fmt.Sprintf(
+			"REVOKE ROLE %s FROM %s %s",
+			privileges[0],
+			toWhomIndicator,
+			fromEntityName,
+		)
+	case "SYSTEM":
+		query = fmt.Sprintf(
+			"REVOKE ALL PRIVILEGES FROM ROLE %s",
+			fromEntityName,
+		)
 	}
 	log.Printf("[DEBUG] Created REVOKE query: %s", query)
 	return query
@@ -749,6 +950,9 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 	if groupName, isGroup := d.GetOk(grantGroupAttr); isGroup {
 		toWhomIndicator = "GROUP"
 		entityName = groupName.(string)
+	} else if roleName, isRole := d.GetOk(grantRoleAttr); isRole {
+		toWhomIndicator = "ROLE"
+		entityName = roleName.(string)
 	} else if userName, isUser := d.GetOk(grantUserAttr); isUser {
 		entityName = userName.(string)
 	}
@@ -818,6 +1022,19 @@ func createGrantsQuery(d *schema.ResourceData, databaseName string) string {
 				toEntityName,
 			)
 		}
+	case "ROLE":
+		query = fmt.Sprintf(
+			"GRANT ROLE %s TO %s %s",
+			privileges[0],
+			toWhomIndicator,
+			toEntityName,
+		)
+	case "SYSTEM":
+		query = fmt.Sprintf(
+			"GRANT %s TO ROLE %s",
+			strings.Join(privileges, ","),
+			toEntityName,
+		)
 	}
 
 	log.Printf("[DEBUG] Created GRANT query: %s", query)
@@ -846,6 +1063,10 @@ func generateGrantID(d *schema.ResourceData) string {
 		parts = append(parts, fmt.Sprintf("gn:%s", name))
 	}
 
+	if _, isRole := d.GetOk(grantRoleAttr); isRole {
+		parts = append(parts, fmt.Sprintf("rn:%s", d.Get(grantRoleAttr).(string)))
+	}
+
 	if _, isUser := d.GetOk(grantUserAttr); isUser {
 		parts = append(parts, fmt.Sprintf("un:%s", d.Get(grantUserAttr).(string)))
 	}
@@ -853,8 +1074,17 @@ func generateGrantID(d *schema.ResourceData) string {
 	objectType := fmt.Sprintf("ot:%s", d.Get(grantObjectTypeAttr).(string))
 	parts = append(parts, objectType)
 
-	if objectType != "ot:database" && objectType != "ot:language" {
+	if objectType != "ot:database" && objectType != "ot:language" && objectType != "ot:role" && objectType != "ot:system" {
 		parts = append(parts, d.Get(grantSchemaAttr).(string))
+	}
+
+	if objectType == "ot:role" || objectType == "ot:system" {
+		privileges := []string{}
+		for _, p := range d.Get(grantPrivilegesAttr).(*schema.Set).List() {
+			privileges = append(privileges, p.(string))
+		}
+
+		parts = append(parts, fmt.Sprintf("pv:%s", strings.Join(privileges, ",")))
 	}
 
 	for _, object := range d.Get(grantObjectsAttr).(*schema.Set).List() {

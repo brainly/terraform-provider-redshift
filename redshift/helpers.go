@@ -194,6 +194,8 @@ func validatePrivileges(privileges []string, objectType string) bool {
 			default:
 				return false
 			}
+		case "ROLE", "SYSTEM":
+			continue
 		default:
 			return false
 		}
